@@ -30,13 +30,16 @@ OmegaAi doesn't just "chat"—it builds. Every task follows a rigorous engineeri
 *   **Unified History**: Navigable and searchable command history via `/history`.
 *   **Wide-Format Dashboard**: A clean, left-aligned "Big Menu" aesthetic designed for readability in large terminals.
 
+### 🛡️ Auto-Dependency Shield
+*   **Zero-Config Startup**: OmegaAi performs a comprehensive health check at startup. If any required Python libraries (`rich`, `httpx`, `aiofiles`, etc.) are missing, it automatically installs them using `pip` before the engine starts.
+
 ---
 
 ## 🛠️ Installation
 
 1.  **Clone the Repository**:
     ```bash
-    git clone https://github.com/your-repo/OmegaAiAgent.git
+    git clone https://github.com/houssemdub/OmegaAiAgent.git
     cd OmegaAiAgent
     ```
 
