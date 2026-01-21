@@ -12,7 +12,8 @@ REQUIRED_LIBS = {
     "aiofiles": "aiofiles",
     "prompt_toolkit": "prompt_toolkit",
     "dotenv": "python-dotenv",
-    "duckduckgo_search": "duckduckgo_search"
+    "duckduckgo_search": "duckduckgo_search",
+    "google.genai": "google-genai"
 }
 
 def check_dependencies():
@@ -77,7 +78,7 @@ from rich import box
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
-from prompt_toolkit.completion import WordCompleter
+from prompt_toolkit.completion import WordCompleter, NestedCompleter
 from prompt_toolkit.styles import Style as PromptStyle
 
 # Environment Variables
@@ -94,7 +95,13 @@ try:
     from duckduckgo_search import DDGS
 except ImportError:
     DDGS = None
-    DDGS = None
+
+try:
+    from google import genai
+    from google.genai import types as genai_types
+except ImportError:
+    genai = None
+    genai_types = None
 
 # Global Console
 console = Console(force_terminal=True, soft_wrap=True)
@@ -176,34 +183,64 @@ def load_dynamic_models() -> Dict[str, Dict[str, str]]:
     
     for json_path in json_paths:
         try:
-            with open(json_path, 'r', encoding='utf-8') as f:
-                data = json.load(f).get("data", [])
-                
-            # Auto-categorize fresh models
-            for m in data:
-                m_id = m.get("id", "")
-                name = m.get("name", m_id)
-                pricing = m.get("pricing", {})
-                
-                # Dynamic check for absolute free tier
-                is_free = str(pricing.get("prompt", "")) == "0" and str(pricing.get("completion", "")) == "0"
-                
-                if is_free or ":free" in m_id.lower():
-                    catalog["Free Tiers"][name] = m_id
-                    found_any = True
-                elif "codex" in m_id.lower() or "coder" in m_id.lower():
-                    catalog["Coding & Development"][name] = m_id
-                elif "thinking" in m_id.lower() or "reasoning" in m_id.lower() or "o1" in m_id.lower():
-                    catalog["Reasoning & Logic"][name] = m_id
+            if json_path.exists():
+                with open(json_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f).get("data", [])
+                    
+                # Auto-categorize fresh models
+                for m in data:
+                    m_id = m.get("id", "")
+                    name = m.get("name", m_id)
+                    pricing = m.get("pricing", {})
+                    
+                    # Dynamic check for absolute free tier
+                    is_free = str(pricing.get("prompt", "")) == "0" and str(pricing.get("completion", "")) == "0"
+                    
+                    if is_free or ":free" in m_id.lower():
+                        catalog["Free Tiers"][name] = m_id
+                        found_any = True
+                    elif "codex" in m_id.lower() or "coder" in m_id.lower():
+                        catalog["Coding & Development"][name] = m_id
+                    elif "thinking" in m_id.lower() or "reasoning" in m_id.lower() or "o1" in m_id.lower():
+                        catalog["Reasoning & Logic"][name] = m_id
         except: pass
         if found_any: break 
-        
+
+    # Add Latest Google Gemini Models (Updated from SDK list)
+    catalog["Google AI Studio"] = {
+        "gemini-2.5-flash": "gemini-2.5-flash",
+        "gemini-3-flash": "gemini-3-flash-preview",
+        "gemini-2.0-flash": "gemini-2.0-flash",
+        "gemini-2.0-thinking": "gemini-2.0-flash-thinking-exp",
+        "gemini-1.5-pro": "gemini-1.5-pro",
+        "gemini-1.5-flash": "gemini-1.5-flash",
+        "gemma-3-27b": "gemma-3-27b-it",
+        "gemini-flash-lite": "gemini-flash-lite-latest"
+    }
+    
     return catalog
 
 MODELS_CATALOG = load_dynamic_models()
 MODEL_MAP = {alias: id for cat in MODELS_CATALOG.values() for alias, id in cat.items()}
 
+
+PROVIDERS = {
+    "openrouter": {
+        "name": "OpenRouter",
+        "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+        "env_key": "OPENROUTER_API_KEY",
+        "refer": "https://openrouter.ai/keys"
+    },
+    "google": {
+        "name": "Google AI Studio",
+        "endpoint": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        "env_key": "GOOGLE_API_KEY",
+        "refer": "https://aistudio.google.com/app/apikey"
+    }
+}
+
 DEFAULT_CONFIG = {
+    "active_provider": "openrouter",
     "models": {
         "planner": "mistralai/devstral-2512:free",
         "architect": "mistralai/devstral-2512:free",
@@ -229,6 +266,83 @@ DEFAULT_CONFIG = {
         "theme": "nebula",
         "banner_color": "cyan",
         "accent_color": "magenta"
+    }
+}
+
+COMMAND_HELP = {
+    "vibe": {
+        "desc": "Initiate the autonomous coding pipeline for a specific task.",
+        "usage": "/vibe <detailed task description>",
+        "example": "/vibe create a snake game in python using pygame"
+    },
+    "tree": {
+        "desc": "Display a visual directory tree of the current workspace.",
+        "usage": "/tree",
+        "example": "/tree"
+    },
+    "undo": {
+        "desc": "Rollback the workspace and config to the previous iteration.",
+        "usage": "/undo",
+        "example": "/undo"
+    },
+    "models": {
+        "desc": "List all available models categorized by provider and capability.",
+        "usage": "/models",
+        "example": "/models"
+    },
+    "model": {
+        "desc": "Switch roles or the entire system to a specific model.",
+        "usage": "/model <alias> OR /model set <role> <alias>",
+        "example": "/model gpt-4o | /model set coder claude-3.5-sonnet",
+        "subs": ["set"]
+    },
+    "auto-models": {
+        "desc": "Automatically assign the best available models based on your provider.",
+        "usage": "/auto-models",
+        "example": "/auto-models"
+    },
+    "models-tier": {
+        "desc": "Switch between pre-defined model tiers (Paid, Free, ExtraFree).",
+        "usage": "/models-tier <paid|fullfree|freetier|extrafree>",
+        "example": "/models-tier extrafree",
+        "subs": ["paid", "fullfree", "freetier", "extrafree"]
+    },
+    "tools": {
+        "desc": "Toggle specific autonomous capabilities (RAG, Search, Vision).",
+        "usage": "/tools <name>",
+        "example": "/tools search | /tools rag",
+        "subs": ["search", "rag", "persistence", "vision", "patching"]
+    },
+    "provider": {
+        "desc": "Switch the active API provider (OpenRouter/Google).",
+        "usage": "/provider <id>",
+        "example": "/provider google",
+        "subs": ["google", "openrouter"]
+    },
+    "history": {
+        "desc": "Display command history with optional filtering.",
+        "usage": "/history <search_term>",
+        "example": "/history python"
+    },
+    "config": {
+        "desc": "View the current JSON configuration of the engine.",
+        "usage": "/config",
+        "example": "/config"
+    },
+    "help": {
+        "desc": "Show the dashboard or specific command documentation.",
+        "usage": "/help <command>",
+        "example": "/help models-tier"
+    },
+    "menu": {
+        "desc": "Access the primary command dashboard.",
+        "usage": "/menu",
+        "example": "/menu"
+    },
+    "exit": {
+        "desc": "Power down the agent and save session state.",
+        "usage": "/exit",
+        "example": "/exit"
     }
 }
 
@@ -514,19 +628,78 @@ class ToolParser:
 # ==================== CLIENT & AGENT ====================
 
 class OmegaClient:
-    def __init__(self, api_key: str, models: Dict[str, str]):
+    def __init__(self, api_key: str, models: Dict[str, str], provider: str = "openrouter"):
         self.api_key = api_key
         self.models = models # Dictionary of roles: model_id
+        self.provider = provider
         self.headers = {
             "Authorization": f"Bearer {api_key}",
             "HTTP-Referer": "https://github.com/antigravity-ai/omega",
             "X-Title": "OmegaAi Agent"
         }
         self.history = []
+        self.logger = Logger(Path.cwd()) # Fallback logger access
 
     async def stream(self, prompt: str, system: str = "", role: str = "coder"):
         model = self.models.get(role, self.models.get("coder"))
+        provider_config = PROVIDERS.get(self.provider, PROVIDERS["openrouter"])
         
+        # USE SDK FOR GOOGLE PROVIDER
+        if self.provider == "google" and genai:
+            try:
+                client = genai.Client(api_key=self.api_key)
+                
+                # Prepare history for Google SDK
+                contents = []
+                for msg in self.history:
+                    role_map = {"user": "user", "assistant": "model", "system": "system"}
+                    contents.append(genai_types.Content(
+                        role=role_map.get(msg["role"], "user"),
+                        parts=[genai_types.Part(text=msg["content"])]
+                    ))
+                
+                # Add current prompt
+                contents.append(genai_types.Content(
+                    role="user",
+                    parts=[genai_types.Part(text=prompt)]
+                ))
+                
+                full = ""
+                # Use generate_content_stream for true streaming
+                config = genai_types.GenerateContentConfig(
+                    system_instruction=system if system else None,
+                    temperature=0.3
+                )
+                
+                # We need to run this in a thread or use the async client if available in the SDK
+                # For now, let's use the basic generate_content_stream which is blocking in the standard client
+                # or use their async support if it exists.
+                # Actually, simple generate_content_stream is iterator.
+                
+                # Normalize model ID: ensure it doesn't have 'models/' prefix if we are passing to client
+                clean_model = model.replace("models/", "")
+                
+                response = client.models.generate_content_stream(
+                    model=clean_model,
+                    contents=contents,
+                    config=config
+                )
+                
+                for chunk in response:
+                    if chunk.text:
+                        full += chunk.text
+                        yield ("content", chunk.text)
+                
+                if full:
+                    self.history.append({"role": "user", "content": prompt})
+                    self.history.append({"role": "assistant", "content": full})
+                    if len(self.history) > 20: self.history = self.history[-20:]
+                return
+            except Exception as e:
+                yield ("error", f"\n[bold red]GOOGLE SDK ERROR:[/bold red] {str(e)}")
+                return
+
+        # FALLBACK TO OPENROUTER/OPENAI COMPATIBILITY
         messages = []
         if system: messages.append({"role": "system", "content": system})
         messages.extend(self.history)
@@ -534,15 +707,17 @@ class OmegaClient:
         
         async with httpx.AsyncClient(timeout=120) as client:
             try:
+                payload = {
+                    "model": model,
+                    "messages": messages,
+                    "stream": True,
+                    "temperature": 0.3
+                }
+                
                 async with client.stream("POST", 
-                    "https://openrouter.ai/api/v1/chat/completions",
+                    provider_config["endpoint"],
                     headers=self.headers,
-                    json={
-                        "model": model,
-                        "messages": messages,
-                        "stream": True,
-                        "temperature": 0.3
-                    }
+                    json=payload
                 ) as response:
                     # Check for immediate success
                     if response.status_code != 200:
@@ -555,14 +730,11 @@ class OmegaClient:
                         
                         hint = ""
                         if response.status_code == 401:
-                            if "User not found" in err_msg:
-                                hint = "\n[yellow]HINT: OpenRouter cannot find your account. Check your API key or account status at openrouter.ai[/yellow]"
-                            else:
-                                hint = "\n[yellow]HINT: Unauthorized. Your API key might be invalid or expired.[/yellow]"
-                        if response.status_code == 402: hint = "\n[yellow]HINT: Your OpenRouter account may be out of credits.[/yellow]"
-                        if response.status_code == 429: hint = "\n[yellow]HINT: You have hit a rate limit. Please wait a few moments.[/yellow]"
+                            hint = f"\n[yellow]HINT: Unauthorized. Your {provider_config['name']} API key might be invalid.[/yellow]"
+                        if response.status_code == 404:
+                            hint = f"\n[yellow]HINT: Model '{model}' not found on {provider_config['name']}.[/yellow]"
                         
-                        yield ("error", f"\n[bold red]API ERROR {response.status_code}:[/bold red] {err_msg}{hint}")
+                        yield ("error", f"\n[bold red]{provider_config['name']} API ERROR {response.status_code}:[/bold red] {err_msg}{hint}")
                         return
 
                     full = ""
@@ -582,7 +754,7 @@ class OmegaClient:
                                 
                                 delta = choices[0].get('delta', {})
                                 
-                                # Handle reasoning tokens
+                                # Handle reasoning tokens (mostly OpenRouter special)
                                 reasoning = delta.get('reasoning', '')
                                 if reasoning:
                                     full += reasoning
@@ -594,16 +766,15 @@ class OmegaClient:
                                     full += content
                                     yield ("content", content)
                             except Exception as e:
-                                # Only log if it's a real failure, ignore heartbeat chunks
                                 if data.strip() and data.strip() != "[DONE]":
-                                    self.logger.info(f"Stream parse error: {e} on data: {data}")
-                                pass
-                    self.history.append({"role": "user", "content": prompt})
-                    self.history.append({"role": "assistant", "content": full})
-                    # Prune history if too long
-                    if len(self.history) > 20: self.history = self.history[-20:]
+                                    pass # Ignore parse errors for heartbeats
+                    
+                    if full:
+                        self.history.append({"role": "user", "content": prompt})
+                        self.history.append({"role": "assistant", "content": full})
+                        if len(self.history) > 20: self.history = self.history[-20:]
             except Exception as e:
-                yield ("error", f"\n[bold red]CONNECTION FAILED:[/bold red] {str(e)}")
+                yield ("error", f"\n[bold red]CONNECTION FAILED ({provider_config['name']}):[/bold red] {str(e)}")
 
 class OmegaAi:
     def __init__(self):
@@ -622,15 +793,44 @@ class OmegaAi:
         # Log startup
         self.logger.info(f"OmegaAi initialized in {self.root}")
         
-        api_key = os.getenv("OPENROUTER_API_KEY")
-        if not api_key:
-            console.print("[bold red]OPENROUTER_API_KEY not found in environment![/bold red]")
-            api_key = Prompt.ask("Enter OpenRouter API Key", password=True)
-        
-        if api_key: api_key = api_key.strip()
+        # Initialize Client
+        if not self.setup_client():
+            console.print("[bold red]Critical Error: No API Key provided. Agent cannot function.[/bold red]")
+            sys.exit(1)
             
-        self.client = OmegaClient(api_key, self.config.get("models"))
         self.iteration = 0
+
+    def setup_client(self, provider_name: str = None) -> bool:
+        """Configures the current AI provider and initializes the client."""
+        if not provider_name:
+            provider_name = self.config.get("active_provider", default="openrouter")
+
+        if provider_name not in PROVIDERS:
+            provider_name = "openrouter"
+
+        info = PROVIDERS[provider_name]
+        api_key = os.getenv(info["env_key"])
+
+        if not api_key:
+            console.print(Panel(
+                f"[bold yellow]⚠️  {info['name']} API Key Missing [/bold yellow]\n\n"
+                f"Provider: [bold cyan]{info['name']}[/bold cyan]\n"
+                f"Required Key: [dim]{info['env_key']}[/dim]\n"
+                f"Get it here: [blue underline]{info['refer']}[/blue underline]\n\n"
+                f"OmegaAi needs this key to power its neural core.",
+                title="Neural Link Required", border_style="yellow"
+            ))
+            api_key = Prompt.ask(f"Enter {info['name']} API Key", password=True)
+            if api_key:
+                os.environ[info["env_key"]] = api_key.strip()
+            else:
+                return False
+
+        self.config.config["active_provider"] = provider_name
+        self.config.save()
+        
+        self.client = OmegaClient(api_key.strip(), self.config.get("models"), provider=provider_name)
+        return True
 
     def show_banner(self):
         banner_font = r"""
@@ -641,56 +841,74 @@ class OmegaAi:
 \____/_/  |_/_____/\____/_/  |_/_/  |_/___/   
 """
         active_models = self.config.get("models")
+        current_p = PROVIDERS.get(self.client.provider, {"name": "Unknown"})
+        tools_cfg = self.config.get("tools")
         
-        # 1. Wide Header
+        # 1. Header Area
         header_text = Text.assemble(
             (banner_font, "bold cyan"),
-            ("\n[ PREMIER AUTONOMOUS ENGINE V3.8 ]", "bold white on blue")
+            ("\n[ PREMIER AUTONOMOUS ENGINE V4.0 | MULTI-PROVIDER ARCHITECTURE ]", "bold white on blue")
         )
         console.print(Panel(header_text, border_style="bright_blue", padding=(1, 2), expand=True))
 
-        # 2. System Telemetry (Full Width)
-        tele_grid = Table.grid(expand=True)
-        tele_grid.add_column(style="bold cyan", width=20)
-        tele_grid.add_column(style="white")
-        
-        tele_grid.add_row(" 🛰️ CORE ENGINE", f": [bold green]{active_models.get('coder')}[/bold green]")
-        tele_grid.add_row(" 🧠 BRAIN MODEL", f": {active_models.get('planner')}")
-        tele_grid.add_row(" 🏛️ ARCHITECT", f": {active_models.get('architect')}")
-        tele_grid.add_row(" 📂 WORKSPACE", f": [dim]{self.root}[/dim]")
-        tele_grid.add_row(" 🕒 SESSION", f": {datetime.now().strftime('%H:%M:%S')}")
-        
-        console.print(Panel(
-            tele_grid,
-            title="[bold blue] SYSTEM TELEMETRY [/bold blue]",
-            title_align="left",
-            border_style="blue",
-            padding=(1, 2),
-            expand=True
-        ))
+        # 2. Key Telemetry Dashboard (3 Columns)
+        tele_table = Table(box=box.ROUNDED, border_style="blue", expand=True, show_header=True, header_style="bold blue")
+        tele_table.add_column("🧠 AI NEURAL LINKS", ratio=1)
+        tele_table.add_column("🌐 INFRASTRUCTURE", ratio=1)
+        tele_table.add_column("📋 PROJECT STATE", ratio=1)
 
-        # 3. Command Dock (Full Width)
-        cmd_grid = Table.grid(expand=True)
-        cmd_grid.add_column(style="bold yellow", width=20)
-        cmd_grid.add_column(style="cyan")
-        
-        # Tool Status Indicators
-        to = self.config.get("tools")
-        tool_status = " | ".join([f"[{'green' if v else 'red'}]{k.upper()}[/{'green' if v else 'red'}]" for k,v in to.items()])
+        # -- Column 1: AI Roles & Models --
+        roles_grid = Table.grid(padding=(0, 1))
+        roles_grid.add_column(style="bold cyan", width=12)
+        roles_grid.add_column(style="white")
+        roles_grid.add_row("CODER", f": [bold green]{active_models.get('coder', 'N/A')}[/bold green]")
+        roles_grid.add_row("PLANNER", f": {active_models.get('planner', 'N/A')}")
+        roles_grid.add_row("ARCHITECT", f": {active_models.get('architect', 'N/A')}")
+        roles_grid.add_row("DEBUGGER", f": {active_models.get('debugger', 'N/A')}")
 
-        cmd_grid.add_row(" 🚀 AUTONOMOUS", "/vibe <task>")
-        cmd_grid.add_row(" 🛠️ TOOLBOX", f"/tools ({tool_status})")
-        cmd_grid.add_row(" 📊 CATALOGUE", "/models | /models-tier")
-        cmd_grid.add_row(" ❓ HELP", "/help")
+        # -- Column 2: Provider & System Meta --
+        infra_grid = Table.grid(padding=(0, 1))
+        infra_grid.add_column(style="bold magenta", width=12)
+        infra_grid.add_column(style="white")
+        infra_grid.add_row("PROVIDER", f": [bold magenta]{current_p['name']}[/bold magenta]")
+        infra_grid.add_row("GATEWAY", f": [dim]{self.client.provider.upper()}[/dim]")
+        infra_grid.add_row("OS ARCH", f": [dim]{platform.system()} {platform.machine()}[/dim]")
+        infra_grid.add_row("SESSION", f": [dim]{datetime.now().strftime('%H:%M:%S')}[/dim]")
+
+        # -- Column 3: Workspace & Activity --
+        state_grid = Table.grid(padding=(0, 1))
+        state_grid.add_column(style="bold yellow", width=12)
+        state_grid.add_column(style="white")
+        state_grid.add_row("WORKSPACE", f": [dim]{self.root.name}/[/dim]")
+        state_grid.add_row("ITERATION", f": {self.iteration}")
+        state_grid.add_row("KNOWLEDGE", f": {'[green]INDEXED[/green]' if tools_cfg.get('rag') else '[red]OFF[/red]'}")
+        backup_count = len(list(self.backup.backup_dir.iterdir())) if self.backup.backup_dir.exists() else 0
+        state_grid.add_row("BACKUPS", f": [dim]{backup_count} units[/dim]")
+
+        tele_table.add_row(roles_grid, infra_grid, state_grid)
+        console.print(tele_table)
+
+        # 3. Toolbox Status Bar
+        tool_badges = []
+        for k, v in tools_cfg.items():
+            icon = "●" if v else "○"
+            color = "green" if v else "red"
+            tool_badges.append(f"[{color}]{icon} {k.upper()}[/{color}]")
         
-        console.print(Panel(
-            cmd_grid,
-            title="[bold yellow] QUICK COMMAND DOCK [/bold yellow]",
-            title_align="left",
-            border_style="yellow",
-            padding=(1, 2),
-            expand=True
-        ))
+        console.print(Panel(Align.center("  |  ".join(tool_badges)), title="[bold green] HARDWARE TOOLBOX STATUS [/bold green]", border_style="green"))
+
+        # 4. Command Dock
+        cmd_grid = Table.grid(expand=True, padding=(0, 2))
+        cmd_grid.add_column(style="bold yellow", ratio=1)
+        cmd_grid.add_column(style="dim white", ratio=2)
+        cmd_grid.add_column(style="bold yellow", ratio=1)
+        cmd_grid.add_column(style="dim white", ratio=2)
+
+        cmd_grid.add_row("🚀 /vibe <task>", "Autonomous coding pipeline", "� /models", "List global model catalogue")
+        cmd_grid.add_row("🧠 /auto-models", "Calibrate recommended roles", "🔌 /provider", "Swap AI gateway / provider")
+        cmd_grid.add_row("📂 /tree", "Visualize directory structure", "❓ /help", "Summon help dashboard")
+        
+        console.print(Panel(cmd_grid, title="[bold yellow] QUICK COMMAND DOCK [/bold yellow]", border_style="yellow", padding=(1, 2)))
 
     async def run_command(self, cmd: str, timeout: int = 40):
         console.print(f"[bold yellow]⚡ Shell:[/bold yellow] {cmd}")
@@ -982,24 +1200,107 @@ Please:
                 console.print("[bold green]✅ System verified and validated.[/bold green]")
                 break
                 
-            v_tools = ToolParser.parse(v_response)
-            if v_tools:
-                v_results = await self.exe_tools(v_tools)
-                verify_prompt = f"Debugger Results:\n{v_results}\n\nPlease continue verification or say SYSTEM VERIFIED."
-            else:
-                break
-
         console.print(Panel("[bold green]🏁 MISSION ACCOMPLISHED[/bold green]\nAll phases complete. The agent has signed off on the workspace.", border_style="green"))
+
+        # 4. Status Bar
+        console.print(Panel(f" [bold white]READY[/bold white] | [cyan]ITERATIONS:[/cyan] {self.iteration} | [magenta]MODE:[/magenta] Autonomous", style="bright_blue"))
+
+    def show_dashboard_menu(self):
+        """Displays a premium dashboard-style help menu"""
+        # 1. Dashboard Header
+        title = Text.assemble(
+            ("     Ω ", "bold cyan"),
+            ("OMEGAAI COMMAND DASHBOARD", "bold white"),
+            (" v3.8     ", "dim cyan")
+        )
+        
+        # 2. Command Categories (3-Column Layout)
+        grid = Table.grid(expand=True, padding=(0, 2))
+        grid.add_column(ratio=1)
+        grid.add_column(ratio=1)
+        grid.add_column(ratio=1)
+
+        # --- Column 1: NEURAL OPERATIONS ---
+        neural_table = Table(title="⚡ NEURAL OPERATIONS", box=box.SIMPLE, header_style="bold cyan", border_style="cyan")
+        neural_table.add_column("Command", style="yellow")
+        neural_table.add_column("Description", style="white")
+        neural_table.add_row("/vibe <task>", "Initiate autonomous pipeline")
+        neural_table.add_row("/tree", "Visualize workspace architecture")
+        neural_table.add_row("/history", "Probe neural command logs")
+        neural_table.add_row("/undo", "Rewind to previous temporal state")
+        
+        # --- Column 2: AI HUB CONTROL ---
+        ai_table = Table(title="🧠 AI HUB CONTROL", box=box.SIMPLE, header_style="bold magenta", border_style="magenta")
+        ai_table.add_column("Command", style="yellow")
+        ai_table.add_column("Description", style="white")
+        ai_table.add_row("/models", "Query available intelligence units")
+        ai_table.add_row("/model <id>", "Hot-swap primary logic unit")
+        ai_table.add_row("/auto-models", "Calibrate optimal role mapping")
+        ai_table.add_row("/models-tier", "Switch model pricing/power tiers")
+        
+        # --- Column 3: SYSTEM CORE ---
+        system_table = Table(title="⚙️ SYSTEM CORE", box=box.SIMPLE, header_style="bold blue", border_style="blue")
+        system_table.add_column("Command", style="yellow")
+        system_table.add_column("Description", style="white")
+        system_table.add_row("/provider", "Manage AI Gateway providers")
+        system_table.add_row("/tools", "Toggle hardware tool access")
+        system_table.add_row("/config", "Dump core engine configuration")
+        system_table.add_row("/menu /help", "Summon this dashboard")
+        system_table.add_row("/exit", "Secure system shutdown")
+
+        grid.add_row(neural_table, ai_table, system_table)
+
+        # 3. Telemetry Footer
+        active_provider = PROVIDERS.get(self.client.provider, {"name": "Unknown"})["name"]
+        footer = Panel(
+            grid,
+            title=title,
+            subtitle=f"[dim]Active Provider:[/dim] [bold green]{active_provider}[/bold green] | [dim]Press TAB for autocompletion[/dim]",
+            border_style="bright_blue",
+            padding=(1, 2)
+        )
+        
+        console.print(footer)
+
+    def show_command_help(self, command_name: str):
+        """Shows detailed intelligence for a specific command"""
+        cmd_id = command_name.lower().replace("/", "")
+        if cmd_id in COMMAND_HELP:
+            info = COMMAND_HELP[cmd_id]
+            h_panel = Panel(
+                f"[bold yellow]Description:[/bold yellow] {info['desc']}\n"
+                f"[bold cyan]Usage:[/bold cyan] [white]{info['usage']}[/white]\n"
+                f"[bold magenta]Example:[/bold magenta] [dim]{info['example']}[/dim]",
+                title=f"HELP: /{cmd_id.upper()}",
+                border_style="cyan",
+                expand=False,
+                padding=(1, 2)
+            )
+            console.print(h_panel)
+        else:
+            console.print(f"[red]No special documentation for '{command_name}'. Try /menu for general list.[/red]")
 
     async def main_loop(self):
         self.show_banner()
         
-        # Command Autocompletion
-        commands = [
-            "/vibe", "/tree", "/config", "/undo", "/models", "/model", 
-            "/auto-models", "/models-tier", "/tools", "/history", "/help", "/exit"
-        ]
-        cmd_completer = WordCompleter(commands, ignore_case=True)
+        # Command Intelligence (Nested Completion)
+        completer_dict = {
+            "/vibe": None,
+            "/tree": None,
+            "/config": None,
+            "/undo": None,
+            "/models": None,
+            "/model": {"set": {"planner": None, "architect": None, "coder": None, "debugger": None, "reviewer": None}},
+            "/provider": {"google": None, "openrouter": None},
+            "/auto-models": None,
+            "/models-tier": {"paid": None, "fullfree": None, "freetier": None, "extrafree": None},
+            "/tools": {"search": None, "rag": None, "persistence": None, "vision": None, "patching": None},
+            "/history": None,
+            "/help": {f"{k}": None for k in COMMAND_HELP.keys()},
+            "/menu": None,
+            "/exit": None
+        }
+        cmd_completer = NestedCompleter.from_nested_dict(completer_dict)
 
         session = PromptSession(
             history=FileHistory(str(self.root / ".omega" / "cmd_history")),
@@ -1034,9 +1335,10 @@ Please:
                         # Frame-based Model Catalogue UI
                         outer_grid = Table.grid(expand=True)
                         
+                        provider_name = PROVIDERS.get(self.client.provider, {}).get("name", "Unknown")
                         header = Panel(
                             Text.assemble(
-                                (" 🌐 OPENROUTER GLOBAL CATALOGUE ", "bold white on blue"),
+                                (f" 🌐 {provider_name.upper()} CATALOGUE ", "bold white on blue"),
                                 ("\n Use /model <alias> to switch all, or /model set <role> <alias>", "dim italic white")
                             ),
                             border_style="blue", padding=(1, 2)
@@ -1045,6 +1347,10 @@ Please:
                         
                         model_tables = []
                         for category, models in MODELS_CATALOG.items():
+                            # Filtering logic for cleaner view
+                            if self.client.provider == "google" and category != "Google AI Studio": continue
+                            if self.client.provider == "openrouter" and category == "Google AI Studio": continue
+
                             table = Table(title=f"📁 {category}", border_style="cyan", header_style="bold cyan", box=box.SIMPLE)
                             table.add_column("Alias", style="white", no_wrap=True)
                             table.add_column("Identifier", style="dim green")
@@ -1097,32 +1403,49 @@ Please:
 
                     elif base == "auto-models":
                         # Automatic intelligence-based model assignment
-                        # Updated with elite free models from your provided list
-                        recommendations = {
-                            "planner": ["xiaomi/mimo-v2-flash:free", "google/gemini-2.0-flash-thinking-exp:free", "anthropic/claude-3.5-sonnet"],
-                            "architect": ["xiaomi/mimo-v2-flash:free", "meta-llama/llama-3.3-70b-instruct:free", "anthropic/claude-3.5-sonnet"],
-                            "coder": ["qwen/qwen3-coder:free", "mistralai/devstral-2512:free", "anthropic/claude-3.5-sonnet"],
-                            "debugger": ["xiaomi/mimo-v2-flash:free", "qwen/qwen3-coder:free", "anthropic/claude-3.5-sonnet"],
-                            "reviewer": ["nvidia/nemotron-3-nano-30b-a3b:free", "google/gemini-flash-1.5", "openai/gpt-4o-mini"]
-                        }
+                        if self.client.provider == "google":
+                            recommendations = {
+                                "planner": ["gemini-2.5-flash", "gemini-3-flash", "gemini-2.0-thinking"],
+                                "architect": ["gemini-2.5-flash", "gemini-3-flash", "gemini-1.5-pro"],
+                                "coder": ["gemini-3-flash", "gemini-2.5-flash", "gemini-flash-latest"],
+                                "debugger": ["gemini-2.5-flash", "gemini-3-flash", "gemini-1.5-pro"],
+                                "reviewer": ["gemini-2.5-flash-lite", "gemini-flash-lite-latest", "gemini-1.5-flash"]
+                            }
+                        else:
+                            recommendations = {
+                                "planner": ["xiaomi/mimo-v2-flash:free", "google/gemini-2.0-flash-thinking-exp:free", "anthropic/claude-3.5-sonnet"],
+                                "architect": ["xiaomi/mimo-v2-flash:free", "meta-llama/llama-3.3-70b-instruct:free", "anthropic/claude-3.5-sonnet"],
+                                "coder": ["qwen/qwen3-coder:free", "mistralai/devstral-2512:free", "anthropic/claude-3.5-sonnet"],
+                                "debugger": ["xiaomi/mimo-v2-flash:free", "qwen/qwen3-coder:free", "anthropic/claude-3.5-sonnet"],
+                                "reviewer": ["nvidia/nemotron-3-nano-30b-a3b:free", "google/gemini-flash-1.5", "openai/gpt-4o-mini"]
+                            }
                         
                         assignments = {}
-                        with console.status("[bold green]Auto-Optimizing System Roles...[/bold green]"):
+                        with console.status("[bold magenta]🧠 Re-calibrating Neural Links...[/bold magenta]"):
                             for role, candidates in recommendations.items():
                                 assigned = False
                                 for cand in candidates:
-                                    if cand in MODEL_MAP.values():
-                                        self.config.config["models"][role] = cand
-                                        assignments[role] = cand
+                                    # Translate alias to full ID if needed
+                                    full_id = MODEL_MAP.get(cand, cand)
+                                    if self.client.provider == "google":
+                                        # Simple check for google IDs
+                                        self.config.config["models"][role] = full_id
+                                        assignments[role] = full_id
+                                        assigned = True
+                                        break
+                                    elif full_id in MODEL_MAP.values():
+                                        self.config.config["models"][role] = full_id
+                                        assignments[role] = full_id
                                         assigned = True
                                         break
                                 if not assigned:
-                                    # Fallback to devstral free if nothing else works
-                                    self.config.config["models"][role] = "mistralai/devstral-2512:free"
-                                    assignments[role] = "mistralai/devstral-2512:free"
+                                    fallback = "gemini-1.5-flash-8b" if self.client.provider == "google" else "mistralai/devstral-2512:free"
+                                    self.config.config["models"][role] = fallback
+                                    assignments[role] = fallback
                             
                             self.client.models = self.config.config["models"]
                             self.config.save()
+                            time.sleep(1) # For that "busy" AI feel
                         
                         # UI Feedback
                         done_table = Table(title="🚀 System Auto-Optimization Result", border_style="green", box=box.ROUNDED)
@@ -1172,36 +1495,68 @@ Please:
                             console.print(f"[red]Error reading history: {e}[/red]")
                         
                     elif base == "models-tier":
-                        tier_map = {
-                            "paid": {
-                                "planner": "anthropic/claude-3.5-sonnet",
-                                "architect": "anthropic/claude-3.5-sonnet",
-                                "coder": "anthropic/claude-3.5-sonnet",
-                                "debugger": "openai/gpt-4o",
-                                "reviewer": "anthropic/claude-3-haiku"
-                            },
-                            "fullfree": {
-                                "planner": "xiaomi/mimo-v2-flash:free",
-                                "architect": "xiaomi/mimo-v2-flash:free",
-                                "coder": "qwen/qwen3-coder:free",
-                                "debugger": "mistralai/devstral-2512:free",
-                                "reviewer": "nvidia/nemotron-3-nano-30b-a3b:free"
-                            },
-                            "freetier": {
-                                "planner": "google/gemini-2.0-flash-exp:free",
-                                "architect": "google/gemini-2.0-flash-exp:free",
-                                "coder": "mistralai/devstral-2512:free",
-                                "debugger": "nvidia/nemotron-nano-9b-v2:free",
-                                "reviewer": "liquid/lfm-2.5-1.2b-instruct:free"
-                            },
-                            "extrafree": {
-                                "planner": "xiaomi/mimo-v2-flash:free",
-                                "architect": "xiaomi/mimo-v2-flash:free",
-                                "coder": "mistralai/devstral-2512:free",
-                                "debugger": "mistralai/devstral-2512:free",
-                                "reviewer": "openrouter/auto"
+                        if self.client.provider == "google":
+                            tier_map = {
+                                "paid": {
+                                    "planner": "gemini-2.0-thinking",
+                                    "architect": "gemini-1.5-pro",
+                                    "coder": "gemini-1.5-pro",
+                                    "debugger": "gemini-1.5-pro",
+                                    "reviewer": "gemini-2.5-flash"
+                                },
+                                "fullfree": {
+                                    "planner": "gemini-2.5-flash",
+                                    "architect": "gemini-2.5-flash",
+                                    "coder": "gemini-2.0-flash",
+                                    "debugger": "gemini-2.5-flash",
+                                    "reviewer": "gemini-1.5-flash"
+                                },
+                                "freetier": {
+                                    "planner": "gemini-flash-latest",
+                                    "architect": "gemini-flash-latest",
+                                    "coder": "gemini-2.5-flash-lite",
+                                    "debugger": "gemini-2.5-flash-lite",
+                                    "reviewer": "gemini-flash-lite-latest"
+                                },
+                                "extrafree": {
+                                    "planner": "gemini-3-flash-preview",
+                                    "architect": "gemini-2.5-flash",
+                                    "coder": "gemini-3-flash-preview",
+                                    "debugger": "gemini-2.5-flash",
+                                    "reviewer": "gemini-2.5-flash-lite"
+                                }
                             }
-                        }
+                        else:
+                            tier_map = {
+                                "paid": {
+                                    "planner": "anthropic/claude-3.5-sonnet",
+                                    "architect": "anthropic/claude-3.5-sonnet",
+                                    "coder": "anthropic/claude-3.5-sonnet",
+                                    "debugger": "openai/gpt-4o",
+                                    "reviewer": "anthropic/claude-3-haiku"
+                                },
+                                "fullfree": {
+                                    "planner": "xiaomi/mimo-v2-flash:free",
+                                    "architect": "xiaomi/mimo-v2-flash:free",
+                                    "coder": "qwen/qwen3-coder:free",
+                                    "debugger": "mistralai/devstral-2512:free",
+                                    "reviewer": "nvidia/nemotron-3-nano-30b-a3b:free"
+                                },
+                                "freetier": {
+                                    "planner": "google/gemini-2.0-flash-exp:free",
+                                    "architect": "google/gemini-2.0-flash-exp:free",
+                                    "coder": "mistralai/devstral-2512:free",
+                                    "debugger": "nvidia/nemotron-nano-9b-v2:free",
+                                    "reviewer": "liquid/lfm-2.5-1.2b-instruct:free"
+                                },
+                                "extrafree": {
+                                    "planner": "xiaomi/mimo-v2-flash:free",
+                                    "architect": "xiaomi/mimo-v2-flash:free",
+                                    "coder": "mistralai/devstral-2512:free",
+                                    "debugger": "mistralai/devstral-2512:free",
+                                    "reviewer": "openrouter/auto"
+                                }
+                            }
                         
                         target = arg.lower().strip()
                         if target in tier_map:
@@ -1261,21 +1616,43 @@ Please:
                         console.print(t_table)
                         console.print("\n[dim]Tip: type '/tools <name>' to toggle a tool.[/dim]")
 
-                    elif base == "help":
-                        h_panel = Panel(
-                            "[bold cyan]OmegaAi Command Shell[/bold cyan]\n\n"
-                            "[yellow]/vibe <task>[/yellow] - Start autonomous development pipeline\n"
-                            "[yellow]/models[/yellow]      - List categorized models and current active roles\n"
-                            "[yellow]/auto-models[/yellow] - Automatically pick recommended models for all roles\n"
-                            "[yellow]/model <alias>[/yellow] - Switch all roles to this model\n"
-                            "[yellow]/model set <role> <alias>[/yellow] - Assign specific role to a model\n"
-                            "[yellow]/tree[/yellow]        - Visualize workspace structure\n"
-                            "[yellow]/history[/yellow]     - View recent commands (/history <search> to filter)\n"
-                            "[yellow]/undo[/yellow]        - Rollback to last iteration\n"
-                            "[yellow]/exit[/yellow]        - Power down agent",
-                            border_style="blue", title="System Help"
-                        )
-                        console.print(h_panel)
+                    elif base == "provider":
+                        if not arg:
+                            p_table = Table(title="🔌 Available AI Providers", border_style="magenta", box=box.ROUNDED)
+                            p_table.add_column("ID", style="cyan")
+                            p_table.add_column("Name", style="bold white")
+                            p_table.add_column("Status", style="green")
+                            p_table.add_column("Key Env", style="dim")
+
+                            for pid, info in PROVIDERS.items():
+                                status = "ACTIVE" if pid == self.client.provider else ""
+                                has_key = "✓" if os.getenv(info["env_key"]) else "MISSING"
+                                p_table.add_row(pid, info["name"], f"[bold green]{status}[/bold green]" if status else f"[dim]{has_key}[/dim]", info["env_key"])
+                            
+                            console.print(p_table)
+                            console.print("\n[dim]Usage: /provider <id> (e.g., /provider google)[/dim]")
+                        else:
+                            target = arg.lower().strip()
+                            if target in PROVIDERS:
+                                if self.setup_client(target):
+                                    console.print(f"[bold green]Successfully switched to {PROVIDERS[target]['name']}.[/bold green]")
+                                    # Suggest models if switching to Google for the first time
+                                    if target == "google":
+                                        console.print("[dim]Tip: Switching models to Gemini 2.0/2.5 for optimal performance...[/dim]")
+                                        for r in ["coder", "planner", "architect", "debugger", "reviewer"]:
+                                            self.config.config["models"][r] = "gemini-2.0-flash"
+                                        self.client.models = self.config.config["models"]
+                                        self.config.save()
+                                else:
+                                    console.print(f"[red]Failed to switch to {target}. API Key required.[/red]")
+                            else:
+                                console.print(f"[red]Unknown provider: {target}[/red]")
+
+                    elif base in ["help", "menu"]:
+                        if arg:
+                            self.show_command_help(arg)
+                        else:
+                            self.show_dashboard_menu()
                     else: console.print(f"[red]Unknown command: {base}[/red]")
                 else:
                     if len(cmd) > 5: await self.process_task(cmd)

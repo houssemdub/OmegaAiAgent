@@ -6,36 +6,41 @@
 
 ## ✨ Key Features
 
+### 🔌 Multi-Provider "Neural" Core
+OmegaAi is now a multi-gateway engine, allowing you to hot-swap between different AI backends seamlessly:
+*   **OpenRouter Integration**: Access to 100+ models via a single API (Claude, GPT, Llama, DeepSeek).
+*   **Native Google AI Studio (Gemini)**: Direct integration via the **`google-genai` SDK**, supporting the latest Gemini 2.0 Flash, 2.5 Flash, and "Thinking" models with industry-leading speed.
+*   **Hot-Switching**: Use `/provider` to jump between backends without session loss.
+
 ### 🧠 Triple-Phase Autonomous Pipeline
-OmegaAi doesn't just "chat"—it builds. Every task follows a rigorous engineering lifecycle:
+Every task follows a rigorous engineering lifecycle:
 1.  **Thinking (Architect)**: Analyzes the workspace, builds a RAG index, and produces a technical blueprint with estimated iteration budgets.
 2.  **Building (Developer)**: Implements the plan using a specialized Coder model, leveraging `<patch>` tools for surgical updates and `<search>` for real-world data.
 3.  **Optimizing (Debugger)**: Conducts a final audit, runs the code, and verifies the implementation against the original intent.
 
+### 🍱 Premium Dashboard UI (V4.0)
+*   **High-Density Telemetry**: A 3-column real-time dashboard tracking Role Assignments, Infrastructure Meta (OS/Arch/Provider), and Project State (Iterations/Backups).
+*   **Illuminated Toolbox**: Dedicated status indicators for hardware tools (Search, RAG, Persistence, Vision).
+*   **Quick Command Dock**: Instant access to primary engine operations.
+
 ### 🧰 The Advanced Toolbox (`/tools`)
-*   **Surgical Patching**: Modify 1,000-line files without re-writing them. Uses `<patch>` with search/replace blocks to save tokens and prevent errors.
-*   **Project Persistence**: A long-term "Knowledge Base" (`.omega/knowledge.md`) that remembers your UI preferences, system constraints, and past decisions.
-*   **Context & RAG**: Automatically indexes your local codebase into a semantic map (`rag.json`) for instant context retrieval.
-*   **Web Search**: Integrated DuckDuckGo search for fetching real-time API docs, weather, and technical facts.
-*   **Visual Auditor**: Built-in visual engineering prompt that audits UI/UX harmony and aesthetic excellence.
-
-### 🚀 Industrial Model Management (`/models`)
-*   **Tiered Ecosystem**: Instantly switch between `paid`, `fullfree`, or `extrafree` tiers.
-*   **Auto-Optimization**: `/auto-models` uses a built-in recommendation engine to assign the most powerful "Survivor" models (like MiMo-V2 and Qwen3 Coder) to specific roles.
-*   **Role-Based Logic**: Assign different models to be your Architect vs. your Coder to maximize performance vs. cost.
-
-### ⌨️ Professional Developer UX
-*   **Intuition Engine**: Ghost-suggestions as you type (Right Arrow/End to complete).
-*   **Lightning Completion**: Tab-autocompletion for all system commands.
-*   **Unified History**: Navigable and searchable command history via `/history`.
-*   **Wide-Format Dashboard**: A clean, left-aligned "Big Menu" aesthetic designed for readability in large terminals.
-
-### 🛡️ Auto-Dependency Shield
-*   **Zero-Config Startup**: OmegaAi performs a comprehensive health check at startup. If any required Python libraries (`rich`, `httpx`, `aiofiles`, etc.) are missing, it automatically installs them using `pip` before the engine starts.
+*   **Surgical Patching**: Modify 1,000-line files without re-writing them. Uses `<patch>` with search/replace blocks.
+*   **Project Persistence**: A long-term "Knowledge Base" (`.omega/knowledge.md`) that remembers your UI preferences and system constraints.
+*   **Context & RAG**: Automatically indexes your local codebase into a semantic map (`rag.json`).
+*   **Web Search**: Integrated DuckDuckGo search for fetching real-time API docs and technical facts.
 
 ---
 
-## 🛠️ Installation
+## 🚀 Industrial Model Hub (`/models`)
+
+OmegaAi features a provider-aware model ecosystem:
+*   **Tiered Optimization**: Instantly switch between `paid`, `fullfree`, or the verified `extrafree` tier.
+*   **Survivor Models**: `/auto-models` uses verified audit data to pick the fastest and most reliable models for each provider (e.g., Gemini 2.5 Flash for Google, Qwen3 Coder for OpenRouter).
+*   **Performance Auditing**: Built-in `test_google_models.py` utility for real-time latency and connectivity checks.
+
+---
+
+## 🛡️ Installation
 
 1.  **Clone the Repository**:
     ```bash
@@ -44,67 +49,53 @@ OmegaAi doesn't just "chat"—it builds. Every task follows a rigorous engineeri
     ```
 
 2.  **Install Requirements**:
+    The engine will **automatically** install missing libs on startup, but you can pre-install:
     ```bash
-    pip install rich httpx aiofiles prompt_toolkit python-dotenv duckduckgo_search
+    pip install rich httpx aiofiles prompt_toolkit python-dotenv duckduckgo_search google-genai
     ```
 
-3.  **Set Up OpenRouter API**:
-    OmegaAi is powered exclusively by the [OpenRouter API](https://openrouter.ai/), which provides access to dozens of state-of-the-art models via a single interface.
-
-    **How to get an API Key:**
-    1.  Go to [OpenRouter.ai](https://openrouter.ai/keys).
-    2.  Sign in with your preferred method.
-    3.  Create a new key and give it a name (e.g., "OmegaAi").
-    4.  **Copy your key immediately**—you won't be able to see it again!
-
-    **Configuration:**
+3.  **Configuration**:
     Create a `.env` file in the root directory:
     ```env
-    OPENROUTER_API_KEY=sk-or-v1-your-key-here
+    OPENROUTER_API_KEY=sk-or-v1-your-key
+    GOOGLE_API_KEY=your-google-api-key
     ```
 
 ---
 
 ## 🎮 Walkthrough: Your First Task
 
-1.  **Initialize**: Launch the engine:
+1.  **Launch**: `python OmegaAi.py`
+2.  **Switch Provider**: Type `/provider google` to use Gemini models.
+3.  **Optimize**: Run `/auto-models` to calibrate your neural links.
+4.  **The Vibe**: Tell OmegaAi to build something:
     ```bash
-    python OmegaAi.py
+    /vibe Build a React dashboard with glassmorphism and real-time weather stats.
     ```
-2.  **Optimize Models**: Run `/auto-models` to ensure you are using the best possible free or paid tier.
-3.  **The First Vibe**: Tell OmegaAi to build something:
-    ```bash
-    /vibe Search for the real weather in Algiers and save it to a gorgeous index.html
-    ```
-4.  **Watch the Magic**: 
-    *   **Architect** will plan the search and HTML layout.
-    *   **Developer** will fetch real data and write the code.
-    *   **Debugger** will verify the 16-day forecast.
-5.  **Audit**: Use `/tree` to see your new files and `/history` to review your session.
+5.  **Check Status**: Use `/menu` to see the dashboard and `/tree` for files.
 
 ---
 
 ## 🧭 System Commands
 
-| Command | Description |
-| :--- | :--- |
-| `/vibe <task>` | Launch the autonomous development loop. |
-| `/tools` | Manage advanced tools (Search, RAG, Persistence). |
-| `/models` | Open the Model Management Hub. |
-| `/auto-models` | Automatically assign the best models to roles. |
-| `/models-tier` | Switch entire system tier (Paid/Free/ExtraFree). |
-| `/history` | Search and view command history. |
-| `/tree` | Visualize the current workspace structure. |
-| `/undo` | Roll back to the previous iteration snapshot. |
-| `/exit` | Gracefully shut down the agent. |
+| Command | Description | Contextual Help |
+| :--- | :--- | :--- |
+| `/vibe <task>`| Launch the autonomous development loop. | `/help vibe` |
+| `/provider` | Manage AI Gateway providers (Google/OR). | `/help provider` |
+| `/models-tier`| Switch entire system tier (Paid/Free/Extra). | `/help models-tier` |
+| `/auto-models`| Automatically assign the best models. | `/help auto-models` |
+| `/tools` | Manage advanced tools (Search, RAG, Vision). | `/help tools` |
+| `/menu` | Open the premium command dashboard. | `/help menu` |
+| `/history` | Search and view command history. | `/help history` |
+| `/undo` | Roll back to the previous iteration. | `/help undo` |
 
 ---
 
 ## 🛡️ Reliability & Safety
-*   **Windows Hardened**: Includes recursive permission handlers to fix the infamous "Access Denied" errors during file operations.
-*   **Iteration Budgeting**: Prevents runaway loops by asking the Architect to estimate the "energy cost" of a task before starting.
-*   **Smart Circuit Breaker**: Detects repetitive writes and API errors (401/429) to halt the process before wasting credits.
+*   **Contextual Help System**: Type `/help <command>` for deep-dive documentation and usage examples.
+*   **Nested Autocompletion**: Advanced TAB-completion for multi-level commands.
+*   **Smart Circuit Breaker**: Detects repetitive writes and API errors (401/429/404) to halt before wasting resources.
 
 ---
 
-**OmegaAi** — *Code at the speed of thought.*
+**OmegaAi** — *Multi-Provider Autonomous Engineering.*

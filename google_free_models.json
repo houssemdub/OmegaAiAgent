@@ -1,0 +1,108 @@
+{
+  "data": [
+    {
+      "model": "models/gemini-2.5-flash",
+      "display_name": "Gemini 2.5 Flash",
+      "status": "PASS",
+      "latency_ms": 844,
+      "response": "Hi there! How can I help you today?",
+      "input_token_limit": 1048576
+    },
+    {
+      "model": "models/gemma-3-1b-it",
+      "display_name": "Gemma 3 1B",
+      "status": "PASS",
+      "latency_ms": 1277,
+      "response": "Hi there! How\u2019s your day going so far? \ud83d\ude0a \n\nIs there anything you\u2019d like to chat about, or anything I can help you with?",
+      "input_token_limit": 32768
+    },
+    {
+      "model": "models/gemma-3-4b-it",
+      "display_name": "Gemma 3 4B",
+      "status": "PASS",
+      "latency_ms": 1289,
+      "response": "Hi there! How\u2019s your day going so far? Is there anything you\u2019d like to chat about, or were you just saying hello? \ud83d\ude0a",
+      "input_token_limit": 32768
+    },
+    {
+      "model": "models/gemma-3-27b-it",
+      "display_name": "Gemma 3 27B",
+      "status": "PASS",
+      "latency_ms": 11058,
+      "response": "Hi there! \ud83d\udc4b \n\nHow can I help you today? Just let me know what you're thinking, or if you just wanted to say hi, that's great too! \n\nI can:\n\n* **Answer questions:** About pretty much anything!\n* **Generate text:** Like stories, poems, articles, code, etc.\n* **Translate languages:**  I can help with that.\n* **Summarize text:**  Give you the key points of a longer piece.\n* **Brainstorm ideas:**  Need help coming up with something?\n* **Just chat:** If you're bored!\n\n\n\n",
+      "input_token_limit": 131072
+    },
+    {
+      "model": "models/gemma-3n-e4b-it",
+      "display_name": "Gemma 3n E4B",
+      "status": "PASS",
+      "latency_ms": 1324,
+      "response": "Hi there! \ud83d\udc4b \n\nHow can I help you today? I'm ready for anything - questions, creative writing, brainstorming, or just a friendly chat. \ud83d\ude0a \n\nJust let me know what's on your mind!\n\n\n\n",
+      "input_token_limit": 8192
+    },
+    {
+      "model": "models/gemma-3n-e2b-it",
+      "display_name": "Gemma 3n E2B",
+      "status": "PASS",
+      "latency_ms": 1601,
+      "response": "Hi there! \ud83d\udc4b \n\nHow can I help you today?  Do you have a question, need some information, or just want to chat? \ud83d\ude0a\n\n\n\nLet me know what's on your mind!\n\n\n\n",
+      "input_token_limit": 8192
+    },
+    {
+      "model": "models/gemini-flash-latest",
+      "display_name": "Gemini Flash Latest",
+      "status": "PASS",
+      "latency_ms": 649,
+      "response": "Hi there! How can I help you today?",
+      "input_token_limit": 1048576
+    },
+    {
+      "model": "models/gemini-flash-lite-latest",
+      "display_name": "Gemini Flash-Lite Latest",
+      "status": "PASS",
+      "latency_ms": 607,
+      "response": "Hi there! How can I help you today?",
+      "input_token_limit": 1048576
+    },
+    {
+      "model": "models/gemini-2.5-flash-lite",
+      "display_name": "Gemini 2.5 Flash-Lite",
+      "status": "PASS",
+      "latency_ms": 600,
+      "response": "Hi there! How can I help you today?",
+      "input_token_limit": 1048576
+    },
+    {
+      "model": "models/gemini-2.5-flash-preview-09-2025",
+      "display_name": "Gemini 2.5 Flash Preview Sep 2025",
+      "status": "PASS",
+      "latency_ms": 535,
+      "response": "Hi there! What can I help you with today?",
+      "input_token_limit": 1048576
+    },
+    {
+      "model": "models/gemini-2.5-flash-lite-preview-09-2025",
+      "display_name": "Gemini 2.5 Flash-Lite Preview Sep 2025",
+      "status": "PASS",
+      "latency_ms": 471,
+      "response": "Hi there! How can I help you today?",
+      "input_token_limit": 1048576
+    },
+    {
+      "model": "models/gemini-3-flash-preview",
+      "display_name": "Gemini 3 Flash Preview",
+      "status": "PASS",
+      "latency_ms": 1452,
+      "response": "Hello! How can I help you today?",
+      "input_token_limit": 1048576
+    },
+    {
+      "model": "models/gemini-robotics-er-1.5-preview",
+      "display_name": "Gemini Robotics-ER 1.5 Preview",
+      "status": "PASS",
+      "latency_ms": 7708,
+      "response": "Hello! How can I help you today?",
+      "input_token_limit": 1048576
+    }
+  ]
+}
