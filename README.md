@@ -48,10 +48,19 @@ OmegaAi doesn't just "chat"—it builds. Every task follows a rigorous engineeri
     pip install rich httpx aiofiles prompt_toolkit python-dotenv duckduckgo_search
     ```
 
-3.  **Set Up API Key**:
+3.  **Set Up OpenRouter API**:
+    OmegaAi is powered exclusively by the [OpenRouter API](https://openrouter.ai/), which provides access to dozens of state-of-the-art models via a single interface.
+
+    **How to get an API Key:**
+    1.  Go to [OpenRouter.ai](https://openrouter.ai/keys).
+    2.  Sign in with your preferred method.
+    3.  Create a new key and give it a name (e.g., "OmegaAi").
+    4.  **Copy your key immediately**—you won't be able to see it again!
+
+    **Configuration:**
     Create a `.env` file in the root directory:
     ```env
-    OPENROUTER_API_KEY=your_key_here
+    OPENROUTER_API_KEY=sk-or-v1-your-key-here
     ```
 
 ---
