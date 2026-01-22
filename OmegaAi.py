@@ -210,17 +210,25 @@ def load_dynamic_models() -> Dict[str, Dict[str, str]]:
         except: pass
         if found_any: break 
 
-    # Add Latest Google Gemini Models (Updated from SDK list)
+    # Add Google AI Studio Models (Dynamic + Core Fallback)
     catalog["Google AI Studio"] = {
-        "gemini-2.5-flash": "gemini-2.5-flash",
-        "gemini-3-flash": "gemini-3-flash-preview",
         "gemini-2.0-flash": "gemini-2.0-flash",
-        "gemini-2.0-thinking": "gemini-2.0-flash-thinking-exp",
         "gemini-1.5-pro": "gemini-1.5-pro",
-        "gemini-1.5-flash": "gemini-1.5-flash",
-        "gemma-3-27b": "gemma-3-27b-it",
-        "gemini-flash-lite": "gemini-flash-lite-latest"
+        "gemini-1.5-flash": "gemini-1.5-flash"
     }
+    
+    google_json_path = Path("google_free_models.json")
+    if google_json_path.exists():
+        try:
+            with open(google_json_path, 'r', encoding='utf-8') as f:
+                google_data = json.load(f).get("data", [])
+                for m in google_data:
+                    m_id = m.get("model", "").replace("models/", "")
+                    if not m_id: continue
+                    # Use a clean display name
+                    display_name = m.get("display_name", m_id)
+                    catalog["Google AI Studio"][display_name] = m_id
+        except: pass
     
     # Add Groq Models (Lightning-Fast LPU Inference)
     groq_json_path = Path("groq_models.json")
@@ -266,37 +274,86 @@ PROVIDERS = {
     }
 }
 
-DEFAULT_CONFIG = {
-    "active_provider": "openrouter",
-    "models": {
-        "planner": "mistralai/devstral-2512:free",
-        "architect": "mistralai/devstral-2512:free",
-        "coder": "mistralai/devstral-2512:free",
-        "debugger": "mistralai/devstral-2512:free",
-        "reviewer": "mistralai/devstral-2512:free"
-    },
-    "provider_models": {
-        "openrouter": {
+PROVIDER_PRESETS = {
+    "openrouter": {
+        "Ultra": {
+            "planner": "anthropic/claude-3.5-sonnet",
+            "architect": "openai/gpt-4o",
+            "coder": "anthropic/claude-3.5-sonnet",
+            "debugger": "openai/gpt-4o",
+            "reviewer": "anthropic/claude-3-haiku"
+        },
+        "Core": {
+            "planner": "google/gemini-flash-1.5",
+            "architect": "meta-llama/llama-3.1-70b-instruct",
+            "coder": "qwen/qwen-2.5-coder-32b-instruct",
+            "debugger": "google/gemini-flash-1.5",
+            "reviewer": "mistralai/pixtral-12b"
+        },
+        "Pulse": {
             "planner": "mistralai/devstral-2512:free",
             "architect": "mistralai/devstral-2512:free",
             "coder": "mistralai/devstral-2512:free",
-            "debugger": "mistralai/devstral-2512:free",
+            "debugger": "liquid/lfm-2.5-1.2b-thinking:free",
             "reviewer": "mistralai/devstral-2512:free"
-        },
-        "google": {
+        }
+    },
+    "google": {
+        "Ultra": {
             "planner": "gemini-2.0-flash",
             "architect": "gemini-2.0-flash",
             "coder": "gemini-2.0-flash",
             "debugger": "gemini-2.0-flash",
-            "reviewer": "gemini-2.0-flash"
+            "reviewer": "gemini-1.5-flash"
         },
-        "groq": {
+        "Core": {
+            "planner": "gemini-2.0-flash",
+            "architect": "gemini-2.5-flash",
+            "coder": "gemini-3-flash-preview",
+            "debugger": "gemini-2.5-flash",
+            "reviewer": "gemini-flash-lite-latest"
+        },
+        "Pulse": {
+            "planner": "gemini-flash-lite-latest",
+            "architect": "gemini-flash-lite-latest",
+            "coder": "gemini-flash-lite-latest",
+            "debugger": "gemini-flash-lite-latest",
+            "reviewer": "gemini-flash-lite-latest"
+        }
+    },
+    "groq": {
+        "Ultra": {
             "planner": "llama-3.3-70b-versatile",
             "architect": "llama-3.3-70b-versatile",
             "coder": "llama-3.3-70b-versatile",
+            "debugger": "llama-3.3-70b-versatile",
+            "reviewer": "llama-3.1-8b-instant"
+        },
+        "Core": {
+            "planner": "llama-3.3-70b-versatile",
+            "architect": "mixtral-8x7b-32768",
+            "coder": "llama-3.3-70b-versatile",
+            "debugger": "llama-3.1-8b-instant",
+            "reviewer": "llama-3.1-8b-instant"
+        },
+        "Pulse": {
+            "planner": "llama-3.1-8b-instant",
+            "architect": "llama-3.1-8b-instant",
+            "coder": "llama-3.1-8b-instant",
             "debugger": "llama-3.1-8b-instant",
             "reviewer": "llama-3.1-8b-instant"
         }
+    }
+}
+
+DEFAULT_CONFIG = {
+    "active_provider": "openrouter",
+    "active_preset": "Core",
+    "models": PROVIDER_PRESETS["openrouter"]["Core"].copy(),
+    "provider_models": {
+        "openrouter": PROVIDER_PRESETS["openrouter"]["Core"].copy(),
+        "google": PROVIDER_PRESETS["google"]["Core"].copy(),
+        "groq": PROVIDER_PRESETS["groq"]["Core"].copy()
     },
     "limits": {
         "max_iterations": 30,
@@ -378,6 +435,17 @@ COMMAND_HELP = {
         "desc": "View the current JSON configuration of the engine.",
         "usage": "/config",
         "example": "/config"
+    },
+    "presets": {
+        "desc": "View the Global Catalogue of pre-calibrated mission profiles across all providers.",
+        "usage": "/presets",
+        "example": "/presets"
+    },
+    "preset": {
+        "desc": "Instantly apply a pre-calibrated mission profile (Ultra, Core, Pulse) to your active provider.",
+        "usage": "/preset <Ultra|Core|Pulse>",
+        "example": "/preset Ultra",
+        "subs": ["Ultra", "Core", "Pulse"]
     },
     "help": {
         "desc": "Show the dashboard or specific command documentation.",
@@ -474,22 +542,36 @@ class KnowledgeManager:
             f.write(entry)
 
     def build_index(self):
-        """Simple RAG indexer that maps file summaries and key markers."""
+        """Advanced project indexer with keyword mapping and signature extraction."""
         index = {}
         for file in self.root.rglob("*"):
-            if file.is_file() and not str(file).startswith(".") and file.suffix in [".py", ".js", ".html", ".css", ".md", ".txt"]:
+            if file.is_file() and not any(part.startswith(".") for part in file.parts) and file.suffix in [".py", ".js", ".ts", ".html", ".css", ".md", ".json"]:
+                # Ignore common junk
+                if any(x in str(file) for x in ["node_modules", "venv", "__pycache__", "logs"]): continue
                 try:
                     with open(file, 'r', encoding='utf-8', errors='ignore') as f:
-                        content = f.read()
-                        # Extract basic info
+                        lines = f.readlines()
+                        content = "".join(lines)
+                        
+                        # Extract signatures (classes/defs)
+                        sigs = re.findall(r'(?:class|def|function|async\s+function)\s+([a-zA-Z_][\w\d_]*)', content)
+                        
+                        # Identify dominant tech/purpose
+                        purpose = "content"
+                        if file.suffix == ".py": purpose = "python_logic"
+                        elif file.suffix in [".js", ".ts"]: purpose = "frontend_logic"
+                        elif file.suffix == ".json": purpose = "configuration"
+                        
                         index[str(file.relative_to(self.root))] = {
                             "size": len(content),
-                            "markers": re.findall(r'(?:class|def|function|const|let)\s+([\w\d_]+)', content)[:20]
+                            "signatures": sigs[:15],
+                            "purpose": purpose,
+                            "top_lines": [l.strip() for l in lines[:5] if l.strip()]
                         }
                 except: continue
         with open(self.rag_path, 'w', encoding='utf-8') as f:
             json.dump(index, f, indent=2)
-        return f"Indexed {len(index)} project files."
+        return f"Neural Index Built: {len(index)} files mapped."
 
 # ==================== ENGINE MODULES ====================
 
@@ -672,6 +754,10 @@ class ToolParser:
             
             if not is_patch_part:
                 tools.append({"type": "search", "query": query})
+
+        # XML Vision: <read_vision path="image" prompt="query" />
+        for m in re.finditer(r'<read_vision\s+path=["\']?([^"\'>\s]+)["\']?\s+prompt=["\']?([^"\'>]+)["\']?\s*/>', text, re.IGNORECASE):
+            tools.append({"type": "vision", "path": m.group(1), "prompt": m.group(2)})
             
         # Markdown Fallback for Write: ```(file:path) or just ```path
         # REFINED: Do not fallback if we already have explicit XML tools (high precision mode)
@@ -739,6 +825,8 @@ class OmegaClient:
         if self.provider == "google" and genai:
             try:
                 client = genai.Client(api_key=self.api_key)
+                # Normalize model ID early
+                clean_model = model.replace("models/", "")
                 
                 # Prepare history for Google SDK
                 contents = []
@@ -749,6 +837,14 @@ class OmegaClient:
                         parts=[genai_types.Part(text=msg["content"])]
                     ))
                 
+                # Check for instruction support (Gemma 3 bypass)
+                can_instruct = "gemma" not in clean_model.lower()
+                
+                if system and not can_instruct:
+                    # Prepend system context to the user message
+                    prompt = f"[SYSTEM CONTEXT]\n{system}\n\n[USER REQUEST]\n{prompt}"
+                    system = None # Clear so it doesn't go to config
+
                 # Add current prompt
                 contents.append(genai_types.Content(
                     role="user",
@@ -761,14 +857,6 @@ class OmegaClient:
                     system_instruction=system if system else None,
                     temperature=0.3
                 )
-                
-                # We need to run this in a thread or use the async client if available in the SDK
-                # For now, let's use the basic generate_content_stream which is blocking in the standard client
-                # or use their async support if it exists.
-                # Actually, simple generate_content_stream is iterator.
-                
-                # Normalize model ID: ensure it doesn't have 'models/' prefix if we are passing to client
-                clean_model = model.replace("models/", "")
                 
                 response = client.models.generate_content_stream(
                     model=clean_model,
@@ -810,7 +898,6 @@ class OmegaClient:
                     headers=self.headers,
                     json=payload
                 ) as response:
-                    # Check for immediate success
                     if response.status_code != 200:
                         error_body = await response.aread()
                         try:
@@ -845,20 +932,18 @@ class OmegaClient:
                                 
                                 delta = choices[0].get('delta', {})
                                 
-                                # Handle reasoning tokens (mostly OpenRouter special)
                                 reasoning = delta.get('reasoning', '')
                                 if reasoning:
                                     full += reasoning
                                     yield ("reasoning", reasoning)
                                 
-                                # Handle content tokens
                                 content = delta.get('content', '')
                                 if content:
                                     full += content
                                     yield ("content", content)
                             except Exception as e:
                                 if data.strip() and data.strip() != "[DONE]":
-                                    pass # Ignore parse errors for heartbeats
+                                    pass
                     
                     if full:
                         self.history.append({"role": "user", "content": prompt})
@@ -866,6 +951,43 @@ class OmegaClient:
                         if len(self.history) > 20: self.history = self.history[-20:]
             except Exception as e:
                 yield ("error", f"\n[bold red]CONNECTION FAILED ({provider_config['name']}):[/bold red] {str(e)}")
+
+    async def stream_vision(self, prompt: str, image_path: Path):
+        """Streaming vision support for multi-modal models."""
+        if self.provider == "google" and genai:
+            try:
+                client = genai.Client(api_key=self.api_key)
+                with open(image_path, "rb") as f:
+                    img_data = f.read()
+                
+                response = client.models.generate_content(
+                    model=self.models.get("coder", "gemini-2.0-flash").replace("models/", ""),
+                    contents=[
+                        genai_types.Part.from_bytes(data=img_data, mime_type="image/jpeg"),
+                        genai_types.Part.from_text(text=prompt)
+                    ]
+                )
+                return response.text
+            except Exception as e:
+                return f"Vision Error: {e}"
+        return "Vision support is currently optimized for Google provider."
+
+class SelfHealingManager:
+    """Intelligent Error Analysis and Recommendation System."""
+    def __init__(self, ai_client: OmegaClient):
+        self.ai = ai_client
+
+    async def heal(self, command: str, error: str):
+        prompt = f"""FAILURE ANALYSIS REQUEST
+Failed Command: {command}
+Error Output: {error}
+
+Task: Identify the root cause and provide a specific, one-line shell command to fix it or an explanation of why it failed. 
+Keep it technical and concise."""
+        heal_res = ""
+        async for type, chunk in self.ai.stream(prompt, system="You are the Neural Healer. Fix system errors.", role="debugger"):
+            if type == "content": heal_res += chunk
+        return heal_res.strip()
 
 class OmegaAi:
     def __init__(self):
@@ -950,7 +1072,7 @@ class OmegaAi:
         # 1. Header Area
         header_text = Text.assemble(
             (banner_font, "bold cyan"),
-            ("\n[ PREMIER AUTONOMOUS ENGINE V4.0 | MULTI-PROVIDER ARCHITECTURE ]", "bold white on blue")
+            ("\n[ PREMIER AUTONOMOUS ENGINE V5.0 | MULTI-PROVIDER ARCHITECTURE ]", "bold white on blue")
         )
         console.print(Panel(header_text, border_style="bright_blue", padding=(1, 2), expand=True))
 
@@ -983,6 +1105,7 @@ class OmegaAi:
         state_grid.add_column(style="bold yellow", width=12)
         state_grid.add_column(style="white")
         state_grid.add_row("WORKSPACE", f": [dim]{self.root.name}/[/dim]")
+        state_grid.add_row("PRESET", f": [bold cyan]{self.config.get('active_preset', default='Core')}[/bold cyan]")
         state_grid.add_row("ITERATION", f": {self.iteration}")
         state_grid.add_row("KNOWLEDGE", f": {'[green]INDEXED[/green]' if tools_cfg.get('rag') else '[red]OFF[/red]'}")
         backup_count = len(list(self.backup.backup_dir.iterdir())) if self.backup.backup_dir.exists() else 0
@@ -998,6 +1121,12 @@ class OmegaAi:
             color = "green" if v else "red"
             tool_badges.append(f"[{color}]{icon} {k.upper()}[/{color}]")
         
+        # Add Healing Feature Badge
+        healing_on = self.config.get("features", "self_healing")
+        h_icon = "🧠" if healing_on else "○"
+        h_color = "bold cyan" if healing_on else "red"
+        tool_badges.append(f"[{h_color}]{h_icon} HEALER[/{h_color}]")
+        
         console.print(Panel(Align.center("  |  ".join(tool_badges)), title="[bold green] HARDWARE TOOLBOX STATUS [/bold green]", border_style="green"))
 
         # 4. Command Dock
@@ -1008,7 +1137,7 @@ class OmegaAi:
         cmd_grid.add_column(style="dim white", ratio=2)
 
         cmd_grid.add_row("🚀 /vibe <task>", "Autonomous coding pipeline", "� /models", "List global model catalogue")
-        cmd_grid.add_row("🧠 /auto-models", "Calibrate recommended roles", "🔌 /provider", "Swap AI gateway / provider")
+        cmd_grid.add_row("🧠 /preset", "Swap intelligence presets", "🔌 /provider", "Swap AI gateway / provider")
         cmd_grid.add_row("📂 /tree", "Visualize directory structure", "❓ /help", "Summon help dashboard")
         
         console.print(Panel(cmd_grid, title="[bold yellow] QUICK COMMAND DOCK [/bold yellow]", border_style="yellow", padding=(1, 2)))
@@ -1052,9 +1181,9 @@ class OmegaAi:
             if new_path.exists() and new_path.is_dir():
                 self.root = new_path
                 self.workspace.root = new_path
-                return f"Successfully changed directory to {new_path}"
+                return {"success": True, "exit_code": 0, "stdout": f"Successfully changed directory to {new_path}", "stderr": ""}
             else:
-                return f"Error: Directory '{target}' not found."
+                return {"success": False, "exit_code": 1, "stdout": "", "stderr": f"Error: Directory '{target}' not found."}
 
         try:
             proc = await asyncio.create_subprocess_shell(
@@ -1070,24 +1199,27 @@ class OmegaAi:
                 if proc.returncode != 0 and out == "" and ("already exists" in err.lower() or "subsistema" in err.lower()):
                     if "mkdir" in cmd: proc.returncode = 0 
 
-                res = f"Exit Code: {proc.returncode}\n"
-                if out: res += f"Output:\n{out[:2000]}"
-                if err: res += f"Error:\n{err[:2000]}"
-                return res
+                return {
+                    "success": proc.returncode == 0,
+                    "exit_code": proc.returncode,
+                    "stdout": out[:3000],
+                    "stderr": err[:3000]
+                }
             except asyncio.TimeoutError:
                 try:
                     proc.terminate()
                     await asyncio.sleep(0.2)
                     if proc.returncode is None: proc.kill()
                     await proc.wait()
-                    await asyncio.sleep(0.1)
                 except: pass
-                return f"Error: Command timed out ({timeout}s). NO INTERACTIVE LOOPS."
+                return {"success": False, "exit_code": -1, "stdout": "", "stderr": "Command timed out."}
         except Exception as e:
-            return f"Error executing command: {e}"
+            return {"success": False, "exit_code": -1, "stdout": "", "stderr": str(e)}
 
     async def exe_tools(self, tools: List[Dict]):
         results = []
+        healer = SelfHealingManager(self.client)
+        
         for t in tools:
             if t["type"] == "read":
                 res = await self.workspace.read(t["path"])
@@ -1096,11 +1228,24 @@ class OmegaAi:
                 res = await self.workspace.write(t["path"], t["content"])
                 results.append(res)
             elif t["type"] == "run":
-                res = await self.run_command(t["cmd"])
-                results.append(res)
+                res_obj = await self.run_command(t["cmd"])
+                if not res_obj["success"] and self.config.get("features", "self_healing"):
+                    console.print(f"[bold red]🧠 Healing Trip:[/bold red] Analyzing failure: {t['cmd']}")
+                    heal_fix = await healer.heal(t['cmd'], res_obj['stderr'])
+                    results.append(f"FAILED: {t['cmd']}\nERROR: {res_obj['stderr']}\nHEALER SUGGESTED FIX: {heal_fix}")
+                else:
+                    results.append(f"Exit Code: {res_obj['exit_code']}\nOutput: {res_obj['stdout']}\nError: {res_obj['stderr']}")
             elif t["type"] == "patch":
                 res = await self.patch_file(t["path"], t["search"], t["replace"])
                 results.append(res)
+            elif t["type"] == "vision":
+                img_path = self.root / t["path"]
+                if img_path.exists():
+                    console.print(f"[bold cyan]👁️ Vision Analysis:[/bold cyan] Scanning {t['path']}...")
+                    res = await self.client.stream_vision(t["prompt"], img_path)
+                    results.append(f"Vision Analysis for {t['path']}:\n{res}")
+                else:
+                    results.append(f"Error: Image {t['path']} not found.")
             elif t["type"] == "search":
                 if self.config.get("tools", "search"):
                     if DDGS:
@@ -1203,9 +1348,16 @@ class OmegaAi:
                 full_text = "\n".join(lines[-max_lines:])
                 full_text = f"[dim]... {len(lines) - max_lines} lines above ...[/dim]\n" + full_text
             
+            # Map display role to config role
+            role_map = {"Developer": "coder", "Architect": "architect", "Debugger": "debugger", "Planner": "planner"}
+            role_key = role_map.get(role, role.lower())
+            model_id = self.client.models.get(role_key, "Unknown")
+            # Clean model ID for display
+            model_display = model_id.split("/")[-1]
+
             return Panel(
                 Markdown(full_text),
-                title=f"[bold magenta]OmegaAi {role.capitalize()}[/bold magenta] [dim](Iteration {it})[/dim]",
+                title=f"[bold magenta]OmegaAi {role.capitalize()}[/bold magenta] [dim](Iteration {it}) Model: {model_display}[/dim]",
                 subtitle="[italic cyan]Streaming Performance ⚡[/italic cyan]",
                 border_style="magenta",
                 padding=(1, 2)
@@ -1266,6 +1418,8 @@ Tools:
 <patch path="file"><search>old</search><replace>new</replace></patch>
 <run>command</run>
 <search>query</search>
+<read_vision path="image" prompt="query" />
+<insight>Learned detail</insight>
 
 IMPORTANT RULES:
 1. ALWAYS use relative paths from the workspace root.
@@ -1277,7 +1431,9 @@ IMPORTANT RULES:
 7. If you learn something critical about how this project works (e.g., specific port, library version), include the tag <insight>Learned detail</insight> in your response to save it to Project Knowledge.
 9. SMART NAMING: Choose descriptive, professional, and industry-standard names for all new files and folders (e.g., snake_case for Python/Ruby, kebab-case for HTML/CSS, PascalCase for React components). Avoid generic names like 'file1.txt' or 'code.py'.
 11. STATEFUL NAVIGATION: Virtual directory changes using 'cd' are supported and persistent across tool calls within the same session.
-12. Once finished, say "TASK COMPLETE".
+12. VISION: Use <read_vision> for UI inspection or image analysis.
+13. SELF-HEALING: Shell failures are automatically analyzed by the Neural Healer.
+14. Once finished, say "TASK COMPLETE".
 """
         
         current_input = "Start implementation of Step 1."
@@ -1350,8 +1506,9 @@ Workspace Tree:
 Please:
 1. Review the created/modified files.
 2. Identify any missing features, bugs, or logic errors.
-3. If issues are found, use tools to FIX them.
-4. If everything looks perfect, say "SYSTEM VERIFIED".
+4. Use <run> to execute tests or linters if needed.
+5. If issues are found, use tools to FIX them.
+6. If everything looks perfect, say "SYSTEM VERIFIED".
 """
         
         v_iteration = 0
@@ -1388,7 +1545,7 @@ Please:
         title = Text.assemble(
             ("     Ω ", "bold cyan"),
             ("OMEGAAI COMMAND DASHBOARD", "bold white"),
-            (" v3.8     ", "dim cyan")
+            (" v5.0     ", "dim cyan")
         )
         
         # 2. Command Categories (3-Column Layout)
@@ -1403,7 +1560,8 @@ Please:
         neural_table.add_column("Description", style="white")
         neural_table.add_row("/vibe <task>", "Initiate autonomous pipeline")
         neural_table.add_row("/tree", "Visualize workspace architecture")
-        neural_table.add_row("/history", "Probe neural command logs")
+        neural_table.add_row("/presets", "View global mission profiles")
+        neural_table.add_row("/preset <tier>", "Switch to Ultra/Core/Pulse")
         neural_table.add_row("/undo", "Rewind to previous temporal state")
         
         # --- Column 2: AI HUB CONTROL ---
@@ -1412,8 +1570,8 @@ Please:
         ai_table.add_column("Description", style="white")
         ai_table.add_row("/models", "Query available intelligence units")
         ai_table.add_row("/model <id>", "Hot-swap primary logic unit")
-        ai_table.add_row("/auto-models", "Calibrate optimal role mapping")
         ai_table.add_row("/models-tier", "Switch model pricing/power tiers")
+        ai_table.add_row("/auto-models", "Calibrate optimal role mapping")
         
         # --- Column 3: SYSTEM CORE ---
         system_table = Table(title="⚙️ SYSTEM CORE", box=box.SIMPLE, header_style="bold blue", border_style="blue")
@@ -1421,7 +1579,7 @@ Please:
         system_table.add_column("Description", style="white")
         system_table.add_row("/provider", "Manage AI Gateway providers")
         system_table.add_row("/tools", "Toggle hardware tool access")
-        system_table.add_row("/config", "Dump core engine configuration")
+        system_table.add_row("/history", "Probe neural command logs")
         system_table.add_row("/menu /help", "Summon this dashboard")
         system_table.add_row("/exit", "Secure system shutdown")
 
@@ -1460,32 +1618,51 @@ Please:
     async def main_loop(self):
         self.show_banner()
         
-        # Command Intelligence (Nested Completion)
-        completer_dict = {
-            "/vibe": None,
-            "/tree": None,
-            "/config": None,
-            "/undo": None,
-            "/models": None,
-            "/model": {"set": {"planner": None, "architect": None, "coder": None, "debugger": None, "reviewer": None}},
-            "/provider": {"google": None, "openrouter": None, "groq": None},
-            "/auto-models": None,
-            "/models-tier": {"paid": None, "fullfree": None, "freetier": None, "extrafree": None},
-            "/tools": {"search": None, "rag": None, "persistence": None, "vision": None, "patching": None},
-            "/history": None,
-            "/help": {f"{k}": None for k in COMMAND_HELP.keys()},
-            "/menu": None,
-            "/exit": None
-        }
-        cmd_completer = NestedCompleter.from_nested_dict(completer_dict)
-
         session = PromptSession(
             history=FileHistory(str(self.root / ".omega" / "cmd_history")),
-            auto_suggest=AutoSuggestFromHistory(),
-            completer=cmd_completer
+            auto_suggest=AutoSuggestFromHistory()
         )
         
         while True:
+            # DYNAMIC NEURAL COMPLETER: Refreshed every iteration to react to provider/model changes
+            m_catalog = load_dynamic_models()
+            p_name = self.client.provider
+            
+            # Filter intelligence units based on active gateway
+            filtered_models = {}
+            for cat, models in m_catalog.items():
+                if p_name == "google" and cat == "Google AI Studio": filtered_models.update(models)
+                elif p_name == "groq" and cat == "Groq (Verified Core)": filtered_models.update(models)
+                elif p_name == "openrouter" and cat not in ["Google AI Studio", "Groq (Verified Core)"]: filtered_models.update(models)
+            
+            model_options = {alias: None for alias in filtered_models.keys()}
+            model_options.update({m_id: None for m_id in filtered_models.values()})
+            
+            role_options = {r: model_options for r in ["planner", "architect", "coder", "debugger", "reviewer"]}
+            
+            completer_dict = {
+                "/vibe": None,
+                "/tree": None,
+                "/config": None,
+                "/undo": None,
+                "/models": None,
+                "/model": {
+                    "set": role_options,
+                    **role_options # Roles suggested first, models only after role
+                },
+                "/provider": {k: None for k in PROVIDERS.keys()},
+                "/auto-models": None,
+                "/presets": None,
+                "/preset": {"Ultra": None, "Core": None, "Pulse": None},
+                "/models-tier": {"paid": None, "fullfree": None, "freetier": None, "extrafree": None},
+                "/tools": {k: None for k in DEFAULT_CONFIG["tools"].keys()},
+                "/history": None,
+                "/help": {f"{k}": None for k in COMMAND_HELP.keys()},
+                "/menu": None,
+                "/exit": None
+            }
+            session.completer = NestedCompleter.from_nested_dict(completer_dict)
+
             try:
                 cmd = await session.prompt_async(f"Ω {self.root.name} > ")
                 if not cmd.strip(): continue
@@ -1535,50 +1712,118 @@ Please:
                             table.add_column("Identifier", style="dim green")
                             table.add_column("Status", style="magenta")
                             
-                            # Limit to top 15 per category to avoid scroll hell
-                            sorted_items = sorted(models.items())[:15]
+                            # Limit to top 20 per category for a better overview
+                            sorted_items = sorted(models.items())[:20]
                             for alias, full_id in sorted_items:
-                                roles = [rk.upper() for rk, rv in self.config.config["models"].items() if rv == full_id]
+                                # Normalize IDs for reliable role matching
+                                clean_full_id = full_id.replace("models/", "")
+                                roles = []
+                                for rk, rv in self.config.config["models"].items():
+                                    if rv.replace("models/", "") == clean_full_id:
+                                        roles.append(rk.upper())
+                                
                                 status = f"★ {', '.join(roles)}" if roles else ""
                                 table.add_row(alias, full_id, status)
                             model_tables.append(table)
                             
                         # Layout tables in columns
                         outer_grid.add_row(Columns(model_tables, equal=True, expand=True))
-                        source = "openrouter_free_models.json" if Path("openrouter_free_models.json").exists() else "openrouter_models.json"
-                        console.print(Panel(outer_grid, border_style="bright_blue", title="Model Management Hub", subtitle=f"[dim]Loaded from {source}[/dim]"))
+                        console.print(Panel(outer_grid, border_style="bright_blue", title="Model Management Hub"))
                         
                     elif base == "model":
                         if not arg:
-                            console.print("[yellow]Usage: /model <alias> OR /model set <role> <alias>[/yellow]")
+                            console.print("[yellow]Usage: /model <alias> OR /model <role> <alias>[/yellow]")
                             console.print(f"[dim]Roles: coder, planner, architect, debugger, reviewer[/dim]")
-                        elif arg.startswith("set "):
-                            parts = arg.split(" ")
-                            if len(parts) == 3:
-                                _, role, alias = parts
-                                if alias in MODEL_MAP and role in ["coder", "planner", "architect", "debugger", "reviewer"]:
-                                    self.config.config["models"][role] = MODEL_MAP[alias]
-                                    self.client.models = self.config.config["models"]
-                                    self.config.save()
-                                    console.print(f"[green]Set {role} to {alias}[/green]")
-                                else:
-                                    console.print("[red]Invalid role or model alias[/red]")
                         else:
-                            if arg in MODEL_MAP:
-                                for r in ["coder", "planner", "architect", "debugger", "reviewer"]:
-                                    self.config.config["models"][r] = MODEL_MAP[arg]
-                                self.client.models = self.config.config["models"]
-                                self.config.save()
-                                console.print(f"[green]All roles switched to {arg}[/green]")
-                            else:
-                                if "/" in arg: # Direct ID
-                                    for r in ["coder", "planner", "architect", "debugger", "reviewer"]:
-                                        self.config.config["models"][r] = arg
+                            # Robust parsing for model setting
+                            # Patterns: set <role> <alias>, <role> <alias>, <alias>
+                            match_set = re.match(r'^(?:set\s+)?(coder|planner|architect|debugger|reviewer)\s+(.+)$', arg, re.IGNORECASE)
+                            
+                            # Update MODEL_MAP just in case dynamic models were loaded
+                            m_catalog = load_dynamic_models()
+                            m_map = {alias: id for cat in m_catalog.values() for alias, id in cat.items()}
+                            m_ids = set(m_map.values())
+                            
+                            if match_set:
+                                role = match_set.group(1).lower()
+                                input_val = match_set.group(2).strip().strip('"').strip("'")
+                                
+                                target_id = m_map.get(input_val, input_val)
+                                
+                                # Validate: It's either a known alias, a known ID, or looks like a direct ID (has slash or dash)
+                                if input_val in m_map or input_val in m_ids or "/" in input_val or "-" in input_val:
+                                    self.config.config["models"][role] = target_id
                                     self.client.models = self.config.config["models"]
                                     self.config.save()
-                                    console.print(f"[green]All roles switched to {arg}[/green]")
+                                    display_name = input_val if input_val in m_map else target_id
+                                    console.print(f"[bold green]✓[/bold green] Set [bold cyan]{role}[/bold cyan] role to [bold white]{display_name}[/bold white]")
                                 else:
-                                    console.print("[red]Unknown model alias. Type /models for list.[/red]")
+                                    console.print(f"[bold red]✗[/bold red] Unknown model alias or ID: [yellow]{input_val}[/yellow]")
+                            else:
+                                # Global switch
+                                input_val = arg.strip().strip('"').strip("'")
+                                target_id = m_map.get(input_val, input_val)
+                                
+                                if input_val in m_map or input_val in m_ids or "/" in input_val or "-" in input_val:
+                                    for r in ["coder", "planner", "architect", "debugger", "reviewer"]:
+                                        self.config.config["models"][r] = target_id
+                                    self.client.models = self.config.config["models"]
+                                    self.config.save()
+                                    display_name = input_val if input_val in m_map else target_id
+                                    console.print(f"[bold green]🚀 All roles switched to {display_name}[/bold green]")
+                                else:
+                                    console.print(f"[bold red]✗[/bold red] Unknown model alias or ID: [yellow]{input_val}[/yellow]")
+
+                    elif base == "presets":
+                        # Display Global Catalogue of all Mission Profiles
+                        table = Table(title="🧠 Neural Mission Profiles (Global Catalogue)", border_style="bright_blue", box=box.ROUNDED)
+                        table.add_column("Provider Hub", style="bold cyan", ratio=1)
+                        table.add_column("ULTRA (Logic Max)", style="bold magenta", ratio=1)
+                        table.add_column("CORE (Symmetrical)", style="bold white", ratio=1)
+                        table.add_column("PULSE (Performance)", style="bold green", ratio=1)
+                        
+                        for p_id, presets in PROVIDER_PRESETS.items():
+                            p_disp = PROVIDERS.get(p_id, {"name": p_id})["name"]
+                            table.add_row(
+                                p_disp,
+                                f"[dim]{presets['Ultra']['coder'][:25]}...[/dim]",
+                                f"[dim]{presets['Core']['coder'][:25]}...[/dim]",
+                                f"[dim]{presets['Pulse']['coder'][:25]}...[/dim]"
+                            )
+                        console.print(table)
+                        console.print("[dim]Use /preset <tier> to apply a profile to your active provider.[/dim]")
+
+                    elif base == "preset":
+                        valid_presets = ["Ultra", "Core", "Pulse"]
+                        if not arg or arg.capitalize() not in valid_presets:
+                            console.print(f"[yellow]Usage: /preset <Ultra|Core|Pulse>[/yellow]")
+                        else:
+                            preset = arg.capitalize()
+                            p_name = self.client.provider
+                            if p_name in PROVIDER_PRESETS and preset in PROVIDER_PRESETS[p_name]:
+                                with console.status(f"[bold cyan]⚖️ Re-tuning mission profile to {preset}...[/bold cyan]"):
+                                    new_models = PROVIDER_PRESETS[p_name][preset].copy()
+                                    self.config.config["models"] = new_models
+                                    self.config.config["active_preset"] = preset
+                                    self.client.models = new_models
+                                    
+                                    # Update provider memory
+                                    if "provider_models" not in self.config.config:
+                                        self.config.config["provider_models"] = {}
+                                    self.config.config["provider_models"][p_name] = new_models.copy()
+                                    
+                                    self.config.save()
+                                    time.sleep(0.5)
+
+                                res_table = Table(title=f"🎯 Neural Preset Applied: {preset}", border_style="bright_blue", box=box.ROUNDED)
+                                res_table.add_column("Role", style="bold magenta")
+                                res_table.add_column("Intelligence Unit (ID)", style="white")
+                                for role, model in new_models.items():
+                                    res_table.add_row(role.upper(), model)
+                                console.print(res_table)
+                                console.print(f"[bold green]✓ Mission profile synchronized for {p_name.upper()}.[/bold green]")
+                            else:
+                                console.print(f"[red]Preset {preset} not found for provider {p_name}[/red]")
 
                     elif base == "auto-models":
                         # Automatic intelligence-based model assignment

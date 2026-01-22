@@ -1,4 +1,4 @@
-# 🌌 OmegaAi: The Ultimate Autonomous Coding Assistant
+# 🌌 OmegaAi: The Ultimate Autonomous Coding Assistant (V5.0)
 
 **OmegaAi** is a high-fidelity, autonomous development engine engineered to transform high-level "vibes" into production-grade code. By combining a tiered multi-agent architecture with long-term project persistence and surgical code editing, OmegaAi operates as a senior engineer in your terminal.
 
@@ -14,19 +14,26 @@ OmegaAi is a multi-gateway engine, allowing you to hot-swap between different AI
 *   **Stateful Model Memory**: Each provider remembers its specific model assignments (e.g., your preferred Groq models are restored when you switch back from Google).
 *   **Verified Groq Core**: Only neural core competency tested models are enabled for Groq provider.
 
+### 🛰️ Neural Mission Profiles (V5.0)
+*   **Instant Calibration**: Switch between **Ultra** (High Intelligence), **Core** (Balanced), and **Pulse** (Performance) presets optimized for your active provider.
+*   **Global Catalogue**: View the entire mission profile library across Google, Groq, and OpenRouter with one command.
+
 ### 🧠 Triple-Phase Autonomous Pipeline
 Every task follows a rigorous engineering lifecycle:
 1.  **Thinking (Architect)**: Analyzes the workspace, builds a RAG index, and produces a technical blueprint.
 2.  **Building (Developer)**: Implements the plan using a specialized Coder model, leveraging `<patch>` tools for surgical updates.
 3.  **Optimizing (Debugger)**: Conducts a final audit, runs the code, and verifies the implementation.
+4.  **Neural Identity**: The iteration header now displays the specific model ID used for each phase, ensuring full transparency.
 
 ### 📂 Proactive Project Architecting
 *   **Smart Detection**: Automatically detects when you want to start a new project and creates the folder structure for you.
 *   **Stateful Shell Navigation**: Integrated virtual `cd` support. The agent tracks its position across iterations, allowing complex multi-directory workflows.
 
-### 🍱 Premium Dashboard UI (V4.5)
+### 🍱 Premium Dashboard UI (V5.0)
 *   **High-Density Telemetry**: A 3-column real-time dashboard tracking Role Assignments, Infrastructure Meta, and Project State.
+*   **Neural Healer Integration**: Real-time feedback when the self-healing system intercepts an error.
 *   **Illuminated Toolbox**: Dedicated status indicators for hardware tools (Search, RAG, Persistence, Vision).
+*   **Quick Command Dock**: Instant access to primary engine operations.
 *   **Anti-Greedy Tool Parsing**: Robust regex engine ensures tool calls are parsed with high precision even when mentioned in conversation.
 
 ### 🧰 The Advanced Toolbox (`/tools`)
@@ -73,7 +80,9 @@ OmegaAi features a provider-aware model ecosystem:
 ## 🎮 Walkthrough: Your First Task
 
 1.  **Launch**: `python OmegaAi.py`
-2.  **Switch Provider**: Type `/provider groq` to feel the speed.
+2.  **Hot-Switching**: Use `/provider` to jump between backends without session loss.
+*   **Neural Healer (Self-Healing)**: Automatically analyzes shell errors and suggests fixes.
+*   **Native Vision (Multi-Modal)**: Use `<read_vision>` to analyze images or audit UI designs.
 3.  **Optimize**: Run `/auto-models` to calibrate your neural links.
 4.  **The Vibe**: Tell OmegaAi to build something:
     ```bash
@@ -87,6 +96,8 @@ OmegaAi features a provider-aware model ecosystem:
 | Command | Description | Contextual Help |
 | :--- | :--- | :--- |
 | `/vibe <task>`| Launch the autonomous development loop. | `/help vibe` |
+| `/presets` | View global mission profiles catalogue. | `/help presets` |
+| `/preset <tier>`| Apply Ultra, Core, or Pulse profiles. | `/help preset` |
 | `/provider` | Manage AI Gateway providers (OR/Google/Groq). | `/help provider` |
 | `/models` | Query available intelligence units for active provider. | `/help models` |
 | `/models-tier`| Switch entire system tier (Paid/Free/Extra). | `/help models-tier` |

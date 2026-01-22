@@ -1,0 +1,386 @@
+{
+  "test_timestamp": "2026-01-22T10:31:36.629028",
+  "test_message": "Say 'Hello' in one word.",
+  "total_models": 20,
+  "models": [
+    {
+      "model_id": "meta-llama/llama-4-scout-17b-16e-instruct",
+      "owned_by": "Meta",
+      "context_window": 131072,
+      "test_result": {
+        "status": "passed",
+        "response_time": 0.33,
+        "completion": "Hello!",
+        "usage": {
+          "queue_time": 0.027910412,
+          "prompt_tokens": 18,
+          "prompt_time": 0.000428432,
+          "completion_tokens": 3,
+          "completion_time": 0.007086576,
+          "total_tokens": 21,
+          "total_time": 0.007515008
+        },
+        "error": null
+      }
+    },
+    {
+      "model_id": "whisper-large-v3",
+      "owned_by": "OpenAI",
+      "context_window": 448,
+      "test_result": {
+        "status": "failed",
+        "response_time": 0.271,
+        "completion": null,
+        "usage": null,
+        "error": "HTTP 400: {\"error\":{\"message\":\"The model `whisper-large-v3` does not support chat completions\",\"type\":\"invalid_request_error\"}}\n"
+      }
+    },
+    {
+      "model_id": "allam-2-7b",
+      "owned_by": "SDAIA",
+      "context_window": 4096,
+      "test_result": {
+        "status": "passed",
+        "response_time": 0.61,
+        "completion": "Hello. ",
+        "usage": {
+          "queue_time": 0.087370956,
+          "prompt_tokens": 15,
+          "prompt_time": 0.001100812,
+          "completion_tokens": 4,
+          "completion_time": 0.003176936,
+          "total_tokens": 19,
+          "total_time": 0.004277748
+        },
+        "error": null
+      }
+    },
+    {
+      "model_id": "whisper-large-v3-turbo",
+      "owned_by": "OpenAI",
+      "context_window": 448,
+      "test_result": {
+        "status": "failed",
+        "response_time": 0.277,
+        "completion": null,
+        "usage": null,
+        "error": "HTTP 400: {\"error\":{\"message\":\"The model `whisper-large-v3-turbo` does not support chat completions\",\"type\":\"invalid_request_error\"}}\n"
+      }
+    },
+    {
+      "model_id": "moonshotai/kimi-k2-instruct-0905",
+      "owned_by": "Moonshot AI",
+      "context_window": 262144,
+      "test_result": {
+        "status": "passed",
+        "response_time": 0.666,
+        "completion": "Hello",
+        "usage": {
+          "queue_time": 0.170161768,
+          "prompt_tokens": 34,
+          "prompt_time": 0.009886885,
+          "completion_tokens": 2,
+          "completion_time": 0.006776443,
+          "total_tokens": 36,
+          "total_time": 0.016663328
+        },
+        "error": null
+      }
+    },
+    {
+      "model_id": "moonshotai/kimi-k2-instruct",
+      "owned_by": "Moonshot AI",
+      "context_window": 131072,
+      "test_result": {
+        "status": "passed",
+        "response_time": 0.446,
+        "completion": "Hello",
+        "usage": {
+          "queue_time": 0.167427858,
+          "prompt_tokens": 34,
+          "prompt_time": 0.010025554,
+          "completion_tokens": 2,
+          "completion_time": 0.006549208,
+          "total_tokens": 36,
+          "total_time": 0.016574762
+        },
+        "error": null
+      }
+    },
+    {
+      "model_id": "openai/gpt-oss-20b",
+      "owned_by": "OpenAI",
+      "context_window": 131072,
+      "test_result": {
+        "status": "passed",
+        "response_time": 0.296,
+        "completion": "",
+        "usage": {
+          "queue_time": 0.015217007,
+          "prompt_tokens": 79,
+          "prompt_time": 0.004467706,
+          "completion_tokens": 10,
+          "completion_time": 0.010239605,
+          "total_tokens": 89,
+          "total_time": 0.014707311,
+          "completion_tokens_details": {
+            "reasoning_tokens": 8
+          }
+        },
+        "error": null
+      }
+    },
+    {
+      "model_id": "openai/gpt-oss-120b",
+      "owned_by": "OpenAI",
+      "context_window": 131072,
+      "test_result": {
+        "status": "passed",
+        "response_time": 0.344,
+        "completion": "",
+        "usage": {
+          "queue_time": 0.017240163,
+          "prompt_tokens": 79,
+          "prompt_time": 0.002966658,
+          "completion_tokens": 10,
+          "completion_time": 0.020547184,
+          "total_tokens": 89,
+          "total_time": 0.023513842,
+          "completion_tokens_details": {
+            "reasoning_tokens": 8
+          }
+        },
+        "error": null
+      }
+    },
+    {
+      "model_id": "qwen/qwen3-32b",
+      "owned_by": "Alibaba Cloud",
+      "context_window": 131072,
+      "test_result": {
+        "status": "passed",
+        "response_time": 0.396,
+        "completion": "<think>\nOkay, the user wants me to say",
+        "usage": {
+          "queue_time": 0.094920311,
+          "prompt_tokens": 16,
+          "prompt_time": 0.00059385,
+          "completion_tokens": 10,
+          "completion_time": 0.016358073,
+          "total_tokens": 26,
+          "total_time": 0.016951923
+        },
+        "error": null
+      }
+    },
+    {
+      "model_id": "llama-3.3-70b-versatile",
+      "owned_by": "Meta",
+      "context_window": 131072,
+      "test_result": {
+        "status": "passed",
+        "response_time": 0.43,
+        "completion": "Hello",
+        "usage": {
+          "queue_time": 0.091068431,
+          "prompt_tokens": 43,
+          "prompt_time": 0.001755204,
+          "completion_tokens": 2,
+          "completion_time": 0.016082767,
+          "total_tokens": 45,
+          "total_time": 0.017837971
+        },
+        "error": null
+      }
+    },
+    {
+      "model_id": "meta-llama/llama-prompt-guard-2-86m",
+      "owned_by": "Meta",
+      "context_window": 512,
+      "test_result": {
+        "status": "passed",
+        "response_time": 0.373,
+        "completion": "0.0004883917281404138",
+        "usage": {
+          "queue_time": 0,
+          "prompt_tokens": 10,
+          "prompt_time": 0,
+          "completion_tokens": 0,
+          "completion_time": 0,
+          "total_tokens": 0,
+          "total_time": 0
+        },
+        "error": null
+      }
+    },
+    {
+      "model_id": "llama-3.1-8b-instant",
+      "owned_by": "Meta",
+      "context_window": 131072,
+      "test_result": {
+        "status": "passed",
+        "response_time": 0.376,
+        "completion": "Hi.",
+        "usage": {
+          "queue_time": 0.088701001,
+          "prompt_tokens": 43,
+          "prompt_time": 0.00300397,
+          "completion_tokens": 3,
+          "completion_time": 0.009220658,
+          "total_tokens": 46,
+          "total_time": 0.012224628
+        },
+        "error": null
+      }
+    },
+    {
+      "model_id": "canopylabs/orpheus-arabic-saudi",
+      "owned_by": "Canopy Labs",
+      "context_window": 4000,
+      "test_result": {
+        "status": "failed",
+        "response_time": 0.267,
+        "completion": null,
+        "usage": null,
+        "error": "HTTP 400: {\"error\":{\"message\":\"The model `canopylabs/orpheus-arabic-saudi` requires terms acceptance. Please have the org admin accept the terms at https://console.groq.com/playground?model=canopylabs%2Forpheus"
+      }
+    },
+    {
+      "model_id": "meta-llama/llama-prompt-guard-2-22m",
+      "owned_by": "Meta",
+      "context_window": 512,
+      "test_result": {
+        "status": "passed",
+        "response_time": 0.367,
+        "completion": "0.0006080301245674491",
+        "usage": {
+          "queue_time": 0,
+          "prompt_tokens": 10,
+          "prompt_time": 0,
+          "completion_tokens": 0,
+          "completion_time": 0,
+          "total_tokens": 0,
+          "total_time": 0
+        },
+        "error": null
+      }
+    },
+    {
+      "model_id": "canopylabs/orpheus-v1-english",
+      "owned_by": "Canopy Labs",
+      "context_window": 4000,
+      "test_result": {
+        "status": "failed",
+        "response_time": 0.254,
+        "completion": null,
+        "usage": null,
+        "error": "HTTP 400: {\"error\":{\"message\":\"The model `canopylabs/orpheus-v1-english` requires terms acceptance. Please have the org admin accept the terms at https://console.groq.com/playground?model=canopylabs%2Forpheus-v"
+      }
+    },
+    {
+      "model_id": "meta-llama/llama-4-maverick-17b-128e-instruct",
+      "owned_by": "Meta",
+      "context_window": 131072,
+      "test_result": {
+        "status": "passed",
+        "response_time": 0.371,
+        "completion": "Hello.",
+        "usage": {
+          "queue_time": 0.087911134,
+          "prompt_tokens": 18,
+          "prompt_time": 0.000330996,
+          "completion_tokens": 3,
+          "completion_time": 0.007573439,
+          "total_tokens": 21,
+          "total_time": 0.007904435
+        },
+        "error": null
+      }
+    },
+    {
+      "model_id": "openai/gpt-oss-safeguard-20b",
+      "owned_by": "OpenAI",
+      "context_window": 131072,
+      "test_result": {
+        "status": "passed",
+        "response_time": 0.48,
+        "completion": "",
+        "usage": {
+          "queue_time": 0.085759542,
+          "prompt_tokens": 79,
+          "prompt_time": 0.004390736,
+          "completion_tokens": 10,
+          "completion_time": 0.010013255,
+          "total_tokens": 89,
+          "total_time": 0.014403991,
+          "completion_tokens_details": {
+            "reasoning_tokens": 8
+          }
+        },
+        "error": null
+      }
+    },
+    {
+      "model_id": "groq/compound-mini",
+      "owned_by": "Groq",
+      "context_window": 131072,
+      "test_result": {
+        "status": "passed",
+        "response_time": 0.499,
+        "completion": "Hi",
+        "usage": {
+          "queue_time": 0.064093,
+          "prompt_tokens": 451,
+          "prompt_time": 0.022391,
+          "completion_tokens": 65,
+          "completion_time": 0.146154,
+          "total_tokens": 516,
+          "total_time": 0.168545
+        },
+        "error": null
+      }
+    },
+    {
+      "model_id": "groq/compound",
+      "owned_by": "Groq",
+      "context_window": 131072,
+      "test_result": {
+        "status": "passed",
+        "response_time": 0.742,
+        "completion": "**Reasoning**\n\nThe task is straightforward: the user asked for the word “Hello” expressed in a single word.  \nSince “Hello” itself is already a single word, the answer is simply that word. No additional processing, translation, or formatting is required.\n\n**Answer**\n\nHello",
+        "usage": {
+          "queue_time": 0.079635,
+          "prompt_tokens": 915,
+          "prompt_time": 0.027795,
+          "completion_tokens": 175,
+          "completion_time": 0.37472,
+          "total_tokens": 1090,
+          "total_time": 0.402516
+        },
+        "error": null
+      }
+    },
+    {
+      "model_id": "meta-llama/llama-guard-4-12b",
+      "owned_by": "Meta",
+      "context_window": 131072,
+      "test_result": {
+        "status": "passed",
+        "response_time": 0.426,
+        "completion": "safe",
+        "usage": {
+          "queue_time": 0.152701059,
+          "prompt_tokens": 207,
+          "prompt_time": 0.012424498,
+          "completion_tokens": 2,
+          "completion_time": 0.006689036,
+          "total_tokens": 209,
+          "total_time": 0.019113534
+        },
+        "error": null
+      }
+    }
+  ],
+  "passed": 16,
+  "failed": 4
+}

@@ -60,6 +60,13 @@ The engine remembers model assignments per provider. Switching from `OpenRouter`
 ### 🏥 Self-Healing Dependencies
 OmegaAi detects missing Python libraries on launch and offers to install them automatically using `pip`. It maintains a `REQUIRED_LIBS` manifest to ensure the environment is always ready for autonomous work.
 
+### 🛰️ Neural Presets (High-Level Tuning)
+The engine provides pre-calibrated mission profiles that match the best available models to their ideal engineering roles:
+*   **Ultra**: Elite models for maximum logic (e.g., Claude 3.5 Sonnet, GPT-4o, Gemini 1.5 Pro).
+*   **Core**: Balanced models for efficiency and capability (e.g., Llama 3.3 70B, DeepSeek Coder).
+*   **Pulse**: High-speed models for rapid iteration and testing (e.g., Llama 3.1 8B, Gemini Flash).
+Profiles are provider-aware and optimized based on real-world competency audits.
+
 ---
 
 ## ⌨️ Command Reference
@@ -67,6 +74,8 @@ OmegaAi detects missing Python libraries on launch and offers to install them au
 | Command | Usage | Detailed Effect |
 | :--- | :--- | :--- |
 | `/vibe` | `/vibe build a news app` | Triggers the Architect -> Developer -> Debugger loop. |
+| `/presets` | `/presets` | Displays the global catalogue of neural mission profiles. |
+| `/preset` | `/preset Ultra` | Applies a specific mission profile tier to the active provider. |
 | `/auto-models`| `/auto-models` | Scans the active provider and assigns the most capable models to roles. |
 | `/undo` | `/undo` | Reverts the last file changes using the `.omega/backups` system. |
 | `/tree` | `/tree 2` | Visualizes the project structure up to a specific depth. |
