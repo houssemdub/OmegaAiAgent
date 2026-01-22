@@ -12,7 +12,7 @@ REQUIRED_LIBS = {
     "aiofiles": "aiofiles",
     "prompt_toolkit": "prompt_toolkit",
     "dotenv": "python-dotenv",
-    "duckduckgo_search": "duckduckgo_search",
+    "ddgs": "ddgs",
     "google.genai": "google-genai"
 }
 
@@ -90,11 +90,15 @@ except ImportError:
 
 # Search
 import warnings
-warnings.filterwarnings("ignore", category=RuntimeWarning)
+# Specifically ignore the renaming warning from duckduckgo_search
+warnings.filterwarnings("ignore", message=".*duckduckgo_search.*renamed to.*ddgs.*")
 try:
-    from duckduckgo_search import DDGS
+    from ddgs import DDGS
 except ImportError:
-    DDGS = None
+    try:
+        from duckduckgo_search import DDGS
+    except ImportError:
+        DDGS = None
 
 try:
     from google import genai
@@ -218,6 +222,23 @@ def load_dynamic_models() -> Dict[str, Dict[str, str]]:
         "gemini-flash-lite": "gemini-flash-lite-latest"
     }
     
+    # Add Groq Models (Lightning-Fast LPU Inference)
+    groq_json_path = Path("groq_models.json")
+    if groq_json_path.exists():
+        try:
+            with open(groq_json_path, 'r', encoding='utf-8') as f:
+                groq_data = json.load(f).get("data", [])
+                catalog["Groq (Verified Core)"] = {}
+                for m in groq_data:
+                    m_id = m.get("id", "")
+                    # Skip Whisper models (audio-only)
+                    if "whisper" in m_id.lower():
+                        continue
+                    # Create friendly names
+                    name = m_id.split("/")[-1] if "/" in m_id else m_id
+                    catalog["Groq (Verified Core)"][name] = m_id
+        except: pass
+    
     return catalog
 
 MODELS_CATALOG = load_dynamic_models()
@@ -236,6 +257,12 @@ PROVIDERS = {
         "endpoint": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
         "env_key": "GOOGLE_API_KEY",
         "refer": "https://aistudio.google.com/app/apikey"
+    },
+    "groq": {
+        "name": "Groq",
+        "endpoint": "https://api.groq.com/openai/v1/chat/completions",
+        "env_key": "GROQ_API_KEY",
+        "refer": "https://console.groq.com/keys"
     }
 }
 
@@ -247,6 +274,29 @@ DEFAULT_CONFIG = {
         "coder": "mistralai/devstral-2512:free",
         "debugger": "mistralai/devstral-2512:free",
         "reviewer": "mistralai/devstral-2512:free"
+    },
+    "provider_models": {
+        "openrouter": {
+            "planner": "mistralai/devstral-2512:free",
+            "architect": "mistralai/devstral-2512:free",
+            "coder": "mistralai/devstral-2512:free",
+            "debugger": "mistralai/devstral-2512:free",
+            "reviewer": "mistralai/devstral-2512:free"
+        },
+        "google": {
+            "planner": "gemini-2.0-flash",
+            "architect": "gemini-2.0-flash",
+            "coder": "gemini-2.0-flash",
+            "debugger": "gemini-2.0-flash",
+            "reviewer": "gemini-2.0-flash"
+        },
+        "groq": {
+            "planner": "llama-3.3-70b-versatile",
+            "architect": "llama-3.3-70b-versatile",
+            "coder": "llama-3.3-70b-versatile",
+            "debugger": "llama-3.1-8b-instant",
+            "reviewer": "llama-3.1-8b-instant"
+        }
     },
     "limits": {
         "max_iterations": 30,
@@ -314,10 +364,10 @@ COMMAND_HELP = {
         "subs": ["search", "rag", "persistence", "vision", "patching"]
     },
     "provider": {
-        "desc": "Switch the active API provider (OpenRouter/Google).",
+        "desc": "Switch the active API provider (OpenRouter/Google/Groq).",
         "usage": "/provider <id>",
-        "example": "/provider google",
-        "subs": ["google", "openrouter"]
+        "example": "/provider google | /provider groq",
+        "subs": ["google", "openrouter", "groq"]
     },
     "history": {
         "desc": "Display command history with optional filtering.",
@@ -378,6 +428,13 @@ class ConfigManager:
 
     def save(self):
         self.omega_dir.mkdir(exist_ok=True)
+        # Synchronize active models with provider_models before saving
+        ap = self.config.get("active_provider")
+        if ap and "models" in self.config:
+            if "provider_models" not in self.config:
+                self.config["provider_models"] = {}
+            self.config["provider_models"][ap] = self.config["models"].copy()
+            
         with open(self.config_path, 'w', encoding='utf-8') as f:
             json.dump(self.config, f, indent=2)
         with open(self.state_path, 'w', encoding='utf-8') as f:
@@ -589,20 +646,54 @@ class ToolParser:
             tools.append({"type": "write", "path": m.group(1), "content": m.group(2).strip()})
             
         # XML Run: <run>command</run>
-        for m in re.finditer(r'<run>(.*?)</run>', text, re.DOTALL | re.IGNORECASE):
+        # REFINED: Use non-greedy but ensure we don't swallow other <run> tags
+        for m in re.finditer(r'<run>((?:(?!<run>).)*?)</run>', text, re.DOTALL | re.IGNORECASE):
             tools.append({"type": "run", "cmd": m.group(1).strip()})
             
         # XML Search: <search>query</search>
-        for m in re.finditer(r'<search>(.*?)</search>', text, re.DOTALL | re.IGNORECASE):
-            tools.append({"type": "search", "query": m.group(1).strip()})
+        # REFINED: Ensure it's not a mention and not inside patch
+        search_matches = re.finditer(r'<search>((?:(?!<search>).)*?)</search>', text, re.DOTALL | re.IGNORECASE)
+        for m in search_matches:
+            query = m.group(1).strip()
+            # COLLISION FIX: If it's inside a <patch> tool, it will be handled there.
+            # We can check if it looks like a regex search/replace part or if it's already
+            # inside a <patch> block by doing a broader check.
+            is_patch_part = False
+            # If the response contains <patch and the query is followed by <replace, it's a patch
+            if '<patch' in text.lower() and '<replace>' in text.lower():
+                # Naive but effective check: is there a <replace> tag later in the text?
+                # Actually, ToolParser.parse for patch handles it specifically.
+                # To be 100% safe, we only accept <search> as a web tool if it's NOT inside <patch> tags.
+                patch_blocks = re.findall(r'<patch.*?>(.*?)</patch>', text, re.DOTALL | re.IGNORECASE)
+                for block in patch_blocks:
+                    if query in block:
+                        is_patch_part = True
+                        break
+            
+            if not is_patch_part:
+                tools.append({"type": "search", "query": query})
             
         # Markdown Fallback for Write: ```(file:path) or just ```path
-        if not any(t["type"] == "write" for t in tools):
+        # REFINED: Do not fallback if we already have explicit XML tools (high precision mode)
+        # OR if the "path candidate" contains suspicious characters like < > [ ] or looks like a tool tag.
+        if not tools:
+            # Known language identifiers to ignore if they appear alone
+            LANG_TAGS = {"python", "py", "javascript", "js", "typescript", "ts", "html", "css", "json", "markdown", "md", "sql", "bash", "sh", "yaml", "yml", "xml", "txt"}
             blocks = re.finditer(r'```(?:\w+)?\s*(?:\(file:\s*([^\)]+)\)|([^\n\r]+))?\n(.*?)```', text, re.DOTALL)
             for b in blocks:
-                path = b.group(1) or b.group(2)
-                if path and "." in path and "/" not in path.split(".")[-1]:
-                    tools.append({"type": "write", "path": path.strip(), "content": b.group(3).strip()})
+                path = (b.group(1) or b.group(2) or "").strip()
+                if path:
+                    # Sanity checks for a path
+                    is_lang_tag = path.lower() in LANG_TAGS
+                    has_path_features = "/" in path or "\\" in path or "." in path
+                    has_invalid_chars = any(c in path for c in '<>[]{}|*?')
+                    
+                    if has_path_features and not is_lang_tag and not has_invalid_chars:
+                        # Extra check: ensure it's not starting with a tool-like prefix
+                        if not path.lstrip().startswith(('<', 'shell:')):
+                            # Extra check: if it ends with a slash, it's a folder, skip
+                            if not path.endswith(('/', '\\')):
+                                tools.append({"type": "write", "path": path, "content": b.group(3).strip()})
         
         # Markdown Fallback for Run: `shell:command`
         if not any(t["type"] == "run" for t in tools):
@@ -801,7 +892,14 @@ class OmegaAi:
         self.iteration = 0
 
     def setup_client(self, provider_name: str = None) -> bool:
-        """Configures the current AI provider and initializes the client."""
+        """Configures the current AI provider and initializes the client with stateful model memory."""
+        # 1. Save current models state to the old provider's preferences before switching
+        if hasattr(self, 'client') and self.client.provider:
+            current_p = self.client.provider
+            if "provider_models" not in self.config.config:
+                self.config.config["provider_models"] = {}
+            self.config.config["provider_models"][current_p] = self.config.config.get("models", {}).copy()
+
         if not provider_name:
             provider_name = self.config.get("active_provider", default="openrouter")
 
@@ -825,6 +923,11 @@ class OmegaAi:
                 os.environ[info["env_key"]] = api_key.strip()
             else:
                 return False
+
+        # 2. Load the saved models for the NEW provider if they exist
+        if "provider_models" in self.config.config and provider_name in self.config.config["provider_models"]:
+            self.config.config["models"] = self.config.config["provider_models"][provider_name].copy()
+            console.print(f"[dim italic]📂 Restored previous model configuration for {info['name']}...[/dim italic]")
 
         self.config.config["active_provider"] = provider_name
         self.config.save()
@@ -937,9 +1040,22 @@ class OmegaAi:
             if 'mkdir -p' in cmd: cmd = cmd.replace('mkdir -p', 'mkdir')
             if cmd.startswith('ls '): cmd = cmd.replace('ls ', 'dir ')
             if cmd == 'ls': cmd = 'dir'
+            if cmd.strip() == 'pwd': cmd = 'echo %cd%'
+            if cmd.startswith('pwd '): cmd = cmd.replace('pwd ', 'echo %cd%')
             if cmd.startswith('cat '): cmd = cmd.replace('cat ', 'type ')
             if 'rm -rf' in cmd: cmd = cmd.replace('rm -rf', 'rmdir /s /q')
-            
+        
+        # STATEFUL CD SUPPORT: If command is 'cd path', update internal root
+        if cmd.lower().startswith('cd '):
+            target = cmd[3:].strip().strip('"').strip("'")
+            new_path = (self.root / target).resolve()
+            if new_path.exists() and new_path.is_dir():
+                self.root = new_path
+                self.workspace.root = new_path
+                return f"Successfully changed directory to {new_path}"
+            else:
+                return f"Error: Directory '{target}' not found."
+
         try:
             proc = await asyncio.create_subprocess_shell(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.root
@@ -1007,10 +1123,66 @@ class OmegaAi:
             await f.write(new_content)
         return f"Successfully patched {path}."
 
+    def detect_project_folder(self, task: str) -> Optional[str]:
+        """Analyzes prompt to see if a new project folder is needed."""
+        triggers = ['create', 'new', 'start', 'build', 'initialize', 'make', 'generate', 'setup', 'set up', 'scaffold', 'bootstrap']
+        targets = ['project', 'app', 'application', 'game', 'tool', 'script', 'website', 'utility', 'dashboard', 'system', 'api', 'bot', 'engine', 'module', 'library', 'wrapper']
+        
+        task_lower = task.lower()
+        
+        # Priority 1: Direct "in folder X" or "in a directory named X"
+        match_folder = re.search(r'in (?:a\s+)?(?:folder|directory|dir)\s*(?:named|called)?\s*["\']?([\w\-_]+)["\']?', task_lower)
+        if match_folder:
+            return match_folder.group(1)
+
+        # Priority 2: "for a X project" or "build a X app"
+        has_trigger = any(t in task_lower for t in triggers)
+        has_target = any(t in task_lower for t in targets)
+        
+        if (has_trigger and has_target) or ("new" in task_lower and has_target):
+            # Extract name: filter out stops and triggers/targets
+            clean = re.sub(r'[^a-zA-Z0-9\s]', ' ', task)
+            words = clean.split()
+            stop = set(triggers + targets + ['a', 'an', 'the', 'of', 'in', 'with', 'named', 'called', 'for', 'simple', 'basic', 'advanced', 'my', 'is', 'it', 'to', 'using', 'from', 'at'])
+            relevant_words = [w.lower() for w in words if w.lower() not in stop]
+            if relevant_words:
+                # Join up to 3 words
+                return "_".join(relevant_words[:3]) or "new_project"
+            elif has_target:
+                for t in targets:
+                    if t in task_lower: return f"new_{t}"
+        return None
+
     async def process_task(self, task: str):
         self.iteration = 0
         self.client.history = [] 
+        
+        # Smart Auto-Naming and Project Folder Detection
+        project_name = self.detect_project_folder(task)
+        if project_name:
+            project_dir = self.root / project_name
+            if not project_dir.exists():
+                console.print(f"[bold yellow]📂 Smart Detection:[/bold yellow] Project request detected. Creating folder: [bold cyan]{project_name}[/bold cyan]")
+                project_dir.mkdir(parents=True, exist_ok=True)
+                # Save internal root before switching for undo/rollback capability
+                self.old_root = self.root
+                self.root = project_dir
+                self.workspace.root = project_dir
+                self.backup.root = project_dir
+                self.knowledge.root = project_dir
+            else:
+                console.print(f"[bold blue]📂 Smart Detection:[/bold blue] Using existing project folder: [bold cyan]{project_name}[/bold cyan]")
+                self.root = project_dir
+                self.workspace.root = project_dir
+                self.backup.root = project_dir
+                self.knowledge.root = project_dir
+
         self.backup.create(0, "pre_task")
+        
+        # Project context for the Architect to prevent redundant mkdirs
+        project_context = ""
+        if project_name:
+            project_context = f"\n[IMPORTANT] You are already initialized inside the project folder: '{project_name}'.\nThis is your WORKSPACE ROOT. Do NOT create another '{project_name}' folder or navigate 'up' to create siblings.\nBuild the project files DIRECTLY in the current directory."
         
         # Helper for smart tailing display
         def get_streaming_view(text: str, role: str, it: int, reasoning: str = "") -> Panel:
@@ -1047,6 +1219,7 @@ class OmegaAi:
 
 Current Workspace:
 {tree}
+{project_context}
 
 Create a detailed technical specification and step-by-step implementation plan. 
 At the end of your plan, you MUST include a line formatted exactly like this:
@@ -1102,7 +1275,9 @@ IMPORTANT RULES:
 5. DO NOT create redundant nested directories.
 6. YOU MUST START EVERY TOOL CALL WITH '<'.
 7. If you learn something critical about how this project works (e.g., specific port, library version), include the tag <insight>Learned detail</insight> in your response to save it to Project Knowledge.
-8. Once finished, say "TASK COMPLETE".
+9. SMART NAMING: Choose descriptive, professional, and industry-standard names for all new files and folders (e.g., snake_case for Python/Ruby, kebab-case for HTML/CSS, PascalCase for React components). Avoid generic names like 'file1.txt' or 'code.py'.
+11. STATEFUL NAVIGATION: Virtual directory changes using 'cd' are supported and persistent across tool calls within the same session.
+12. Once finished, say "TASK COMPLETE".
 """
         
         current_input = "Start implementation of Step 1."
@@ -1130,14 +1305,19 @@ IMPORTANT RULES:
 
             self.logger.ai("Developer", response)
             
-            if "TASK COMPLETE" in response.upper() or "TASK COMPLETE" in reasoning.upper():
-                self.logger.info("Task marked complete by AI.")
-                break
-                
             # Parse tools from BOTH content and reasoning to be safe
             combined_output = f"{reasoning}\n{response}"
             tools = ToolParser.parse(combined_output)
             
+            if tools:
+                results = await self.exe_tools(tools)
+                self.logger.tool("Execution", results)
+                current_input = f"Tool Results:\n{results}"
+            
+            if "TASK COMPLETE" in response.upper() or "TASK COMPLETE" in reasoning.upper():
+                self.logger.info("Task marked complete by AI.")
+                break
+                
             if not tools:
                 if not response.strip() and not reasoning.strip():
                     self.logger.info("Empty response from model.")
@@ -1147,9 +1327,6 @@ IMPORTANT RULES:
                     # If the AI is just talking, maybe it forgot to say TASK COMPLETE
                     current_input = "If you have finished the requested work, please say 'TASK COMPLETE'. Otherwise, use a tool like <write> or <run> to continue implementation."
                 continue
-                
-            results = await self.exe_tools(tools)
-            self.logger.tool("Execution", results)
             
             # Persistent insights
             if self.config.get("tools", "persistence"):
@@ -1291,7 +1468,7 @@ Please:
             "/undo": None,
             "/models": None,
             "/model": {"set": {"planner": None, "architect": None, "coder": None, "debugger": None, "reviewer": None}},
-            "/provider": {"google": None, "openrouter": None},
+            "/provider": {"google": None, "openrouter": None, "groq": None},
             "/auto-models": None,
             "/models-tier": {"paid": None, "fullfree": None, "freetier": None, "extrafree": None},
             "/tools": {"search": None, "rag": None, "persistence": None, "vision": None, "patching": None},
@@ -1350,6 +1527,8 @@ Please:
                             # Filtering logic for cleaner view
                             if self.client.provider == "google" and category != "Google AI Studio": continue
                             if self.client.provider == "openrouter" and category == "Google AI Studio": continue
+                            if self.client.provider == "groq" and category not in ["Groq (Verified Core)"]: continue
+                            if self.client.provider != "groq" and category == "Groq (Verified Core)": continue
 
                             table = Table(title=f"📁 {category}", border_style="cyan", header_style="bold cyan", box=box.SIMPLE)
                             table.add_column("Alias", style="white", no_wrap=True)
@@ -1411,6 +1590,22 @@ Please:
                                 "debugger": ["gemini-2.5-flash", "gemini-3-flash", "gemini-1.5-pro"],
                                 "reviewer": ["gemini-2.5-flash-lite", "gemini-flash-lite-latest", "gemini-1.5-flash"]
                             }
+                        elif self.client.provider == "groq":
+
+                            recommendations = {
+
+                                "planner": ["llama-3.3-70b-versatile", "groq/compound", "meta-llama/llama-4-maverick-17b-128e-instruct"],
+
+                                "architect": ["llama-3.3-70b-versatile", "meta-llama/llama-4-scout-17b-16e-instruct", "groq/compound"],
+
+                                "coder": ["llama-3.3-70b-versatile", "meta-llama/llama-4-maverick-17b-128e-instruct", "llama-3.1-8b-instant"],
+
+                                "debugger": ["llama-3.1-8b-instant", "groq/compound-mini", "llama-3.3-70b-versatile"],
+
+                                "reviewer": ["llama-3.1-8b-instant", "groq/compound-mini", "llama-3.3-70b-versatile"]
+
+                            }
+
                         else:
                             recommendations = {
                                 "planner": ["xiaomi/mimo-v2-flash:free", "google/gemini-2.0-flash-thinking-exp:free", "anthropic/claude-3.5-sonnet"],
@@ -1636,13 +1831,6 @@ Please:
                             if target in PROVIDERS:
                                 if self.setup_client(target):
                                     console.print(f"[bold green]Successfully switched to {PROVIDERS[target]['name']}.[/bold green]")
-                                    # Suggest models if switching to Google for the first time
-                                    if target == "google":
-                                        console.print("[dim]Tip: Switching models to Gemini 2.0/2.5 for optimal performance...[/dim]")
-                                        for r in ["coder", "planner", "architect", "debugger", "reviewer"]:
-                                            self.config.config["models"][r] = "gemini-2.0-flash"
-                                        self.client.models = self.config.config["models"]
-                                        self.config.save()
                                 else:
                                     console.print(f"[red]Failed to switch to {target}. API Key required.[/red]")
                             else:
