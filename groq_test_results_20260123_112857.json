@@ -1,0 +1,153 @@
+{
+  "timestamp": "2026-01-23 11:28:57",
+  "provider": "Groq LPU",
+  "total_models": 16,
+  "successful": 14,
+  "failed": 2,
+  "results": [
+    {
+      "model_id": "llama-3.1-8b-instant",
+      "status": "success",
+      "latency": 0.352,
+      "ttft": 0.213,
+      "tps": 575.38,
+      "tokens": 80,
+      "error": null
+    },
+    {
+      "model_id": "openai/gpt-oss-safeguard-20b",
+      "status": "success",
+      "latency": 0.63,
+      "ttft": 0.204,
+      "tps": 136.11,
+      "tokens": 58,
+      "error": null
+    },
+    {
+      "model_id": "openai/gpt-oss-20b",
+      "status": "success",
+      "latency": 0.399,
+      "ttft": 0.127,
+      "tps": 213.51,
+      "tokens": 58,
+      "error": null
+    },
+    {
+      "model_id": "qwen/qwen3-32b",
+      "status": "success",
+      "latency": 1.293,
+      "ttft": 0.276,
+      "tps": 394.42,
+      "tokens": 401,
+      "error": null
+    },
+    {
+      "model_id": "moonshotai/kimi-k2-instruct",
+      "status": "success",
+      "latency": 0.637,
+      "ttft": 0.28,
+      "tps": 229.58,
+      "tokens": 82,
+      "error": null
+    },
+    {
+      "model_id": "meta-llama/llama-prompt-guard-2-86m",
+      "status": "failed",
+      "latency": 0,
+      "ttft": 0,
+      "tps": 0,
+      "tokens": 0,
+      "error": "HTTP 400: {\"error\":{\"message\":\"text classification models do not support streaming\",\"type\":\"invalid_request_error\"}}\n"
+    },
+    {
+      "model_id": "groq/compound-mini",
+      "status": "success",
+      "latency": 1.024,
+      "ttft": 0.205,
+      "tps": 86.77,
+      "tokens": 71,
+      "error": null
+    },
+    {
+      "model_id": "groq/compound",
+      "status": "success",
+      "latency": 5.279,
+      "ttft": 0.223,
+      "tps": 20.37,
+      "tokens": 103,
+      "error": null
+    },
+    {
+      "model_id": "meta-llama/llama-guard-4-12b",
+      "status": "success",
+      "latency": 0.266,
+      "ttft": 0.25,
+      "tps": 65.24,
+      "tokens": 1,
+      "error": null
+    },
+    {
+      "model_id": "allam-2-7b",
+      "status": "success",
+      "latency": 0.251,
+      "ttft": 0.192,
+      "tps": 1526.12,
+      "tokens": 90,
+      "error": null
+    },
+    {
+      "model_id": "llama-3.3-70b-versatile",
+      "status": "success",
+      "latency": 0.506,
+      "ttft": 0.259,
+      "tps": 335.85,
+      "tokens": 83,
+      "error": null
+    },
+    {
+      "model_id": "openai/gpt-oss-120b",
+      "status": "success",
+      "latency": 0.745,
+      "ttft": 0.139,
+      "tps": 138.69,
+      "tokens": 84,
+      "error": null
+    },
+    {
+      "model_id": "meta-llama/llama-4-scout-17b-16e-instruct",
+      "status": "success",
+      "latency": 0.312,
+      "ttft": 0.143,
+      "tps": 432.06,
+      "tokens": 73,
+      "error": null
+    },
+    {
+      "model_id": "meta-llama/llama-4-maverick-17b-128e-instruct",
+      "status": "success",
+      "latency": 0.243,
+      "ttft": 0.188,
+      "tps": 597.73,
+      "tokens": 33,
+      "error": null
+    },
+    {
+      "model_id": "moonshotai/kimi-k2-instruct-0905",
+      "status": "success",
+      "latency": 0.706,
+      "ttft": 0.275,
+      "tps": 201.83,
+      "tokens": 87,
+      "error": null
+    },
+    {
+      "model_id": "meta-llama/llama-prompt-guard-2-22m",
+      "status": "failed",
+      "latency": 0,
+      "ttft": 0,
+      "tps": 0,
+      "tokens": 0,
+      "error": "HTTP 400: {\"error\":{\"message\":\"text classification models do not support streaming\",\"type\":\"invalid_request_error\"}}\n"
+    }
+  ]
+}

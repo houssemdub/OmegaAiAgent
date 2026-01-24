@@ -1,0 +1,126 @@
+{
+  "timestamp": "2026-01-23 11:27:15",
+  "provider": "Google AI Studio",
+  "total_models": 13,
+  "successful": 0,
+  "failed": 13,
+  "results": [
+    {
+      "model_id": "models/gemini-2.5-flash",
+      "status": "failed",
+      "latency": 0,
+      "ttft": 0,
+      "tps": 0,
+      "tokens": 0,
+      "error": "HTTP 400: [{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"Missing Authorization header.\",\n    \"status\": \"INVALID_ARGUMENT\"\n  }\n}\n]"
+    },
+    {
+      "model_id": "models/gemma-3-1b-it",
+      "status": "failed",
+      "latency": 0,
+      "ttft": 0,
+      "tps": 0,
+      "tokens": 0,
+      "error": "HTTP 400: [{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"Missing Authorization header.\",\n    \"status\": \"INVALID_ARGUMENT\"\n  }\n}\n]"
+    },
+    {
+      "model_id": "models/gemma-3-4b-it",
+      "status": "failed",
+      "latency": 0,
+      "ttft": 0,
+      "tps": 0,
+      "tokens": 0,
+      "error": "HTTP 400: [{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"Missing Authorization header.\",\n    \"status\": \"INVALID_ARGUMENT\"\n  }\n}\n]"
+    },
+    {
+      "model_id": "models/gemma-3-27b-it",
+      "status": "failed",
+      "latency": 0,
+      "ttft": 0,
+      "tps": 0,
+      "tokens": 0,
+      "error": "HTTP 400: [{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"Missing Authorization header.\",\n    \"status\": \"INVALID_ARGUMENT\"\n  }\n}\n]"
+    },
+    {
+      "model_id": "models/gemma-3n-e4b-it",
+      "status": "failed",
+      "latency": 0,
+      "ttft": 0,
+      "tps": 0,
+      "tokens": 0,
+      "error": "HTTP 400: [{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"Missing Authorization header.\",\n    \"status\": \"INVALID_ARGUMENT\"\n  }\n}\n]"
+    },
+    {
+      "model_id": "models/gemma-3n-e2b-it",
+      "status": "failed",
+      "latency": 0,
+      "ttft": 0,
+      "tps": 0,
+      "tokens": 0,
+      "error": "HTTP 400: [{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"Missing Authorization header.\",\n    \"status\": \"INVALID_ARGUMENT\"\n  }\n}\n]"
+    },
+    {
+      "model_id": "models/gemini-flash-latest",
+      "status": "failed",
+      "latency": 0,
+      "ttft": 0,
+      "tps": 0,
+      "tokens": 0,
+      "error": "HTTP 400: [{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"Missing Authorization header.\",\n    \"status\": \"INVALID_ARGUMENT\"\n  }\n}\n]"
+    },
+    {
+      "model_id": "models/gemini-flash-lite-latest",
+      "status": "failed",
+      "latency": 0,
+      "ttft": 0,
+      "tps": 0,
+      "tokens": 0,
+      "error": "HTTP 400: [{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"Missing Authorization header.\",\n    \"status\": \"INVALID_ARGUMENT\"\n  }\n}\n]"
+    },
+    {
+      "model_id": "models/gemini-2.5-flash-lite",
+      "status": "failed",
+      "latency": 0,
+      "ttft": 0,
+      "tps": 0,
+      "tokens": 0,
+      "error": "HTTP 400: [{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"Missing Authorization header.\",\n    \"status\": \"INVALID_ARGUMENT\"\n  }\n}\n]"
+    },
+    {
+      "model_id": "models/gemini-2.5-flash-preview-09-2025",
+      "status": "failed",
+      "latency": 0,
+      "ttft": 0,
+      "tps": 0,
+      "tokens": 0,
+      "error": "HTTP 400: [{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"Missing Authorization header.\",\n    \"status\": \"INVALID_ARGUMENT\"\n  }\n}\n]"
+    },
+    {
+      "model_id": "models/gemini-2.5-flash-lite-preview-09-2025",
+      "status": "failed",
+      "latency": 0,
+      "ttft": 0,
+      "tps": 0,
+      "tokens": 0,
+      "error": "HTTP 400: [{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"Missing Authorization header.\",\n    \"status\": \"INVALID_ARGUMENT\"\n  }\n}\n]"
+    },
+    {
+      "model_id": "models/gemini-3-flash-preview",
+      "status": "failed",
+      "latency": 0,
+      "ttft": 0,
+      "tps": 0,
+      "tokens": 0,
+      "error": "HTTP 400: [{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"Missing Authorization header.\",\n    \"status\": \"INVALID_ARGUMENT\"\n  }\n}\n]"
+    },
+    {
+      "model_id": "models/gemini-robotics-er-1.5-preview",
+      "status": "failed",
+      "latency": 0,
+      "ttft": 0,
+      "tps": 0,
+      "tokens": 0,
+      "error": "HTTP 400: [{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"Missing Authorization header.\",\n    \"status\": \"INVALID_ARGUMENT\"\n  }\n}\n]"
+    }
+  ]
+}

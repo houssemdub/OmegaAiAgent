@@ -1,0 +1,126 @@
+{
+  "timestamp": "2026-01-23 11:27:51",
+  "provider": "Google AI Studio",
+  "total_models": 13,
+  "successful": 13,
+  "failed": 0,
+  "results": [
+    {
+      "model_id": "models/gemini-2.5-flash",
+      "status": "success",
+      "latency": 5.944,
+      "ttft": 5.868,
+      "tps": 26.3,
+      "tokens": 2,
+      "error": null
+    },
+    {
+      "model_id": "models/gemma-3-1b-it",
+      "status": "success",
+      "latency": 1.733,
+      "ttft": 0.724,
+      "tps": 46.55,
+      "tokens": 47,
+      "error": null
+    },
+    {
+      "model_id": "models/gemma-3-4b-it",
+      "status": "success",
+      "latency": 2.177,
+      "ttft": 0.881,
+      "tps": 50.91,
+      "tokens": 66,
+      "error": null
+    },
+    {
+      "model_id": "models/gemma-3-27b-it",
+      "status": "success",
+      "latency": 5.096,
+      "ttft": 3.65,
+      "tps": 53.96,
+      "tokens": 78,
+      "error": null
+    },
+    {
+      "model_id": "models/gemma-3n-e4b-it",
+      "status": "success",
+      "latency": 1.947,
+      "ttft": 0.724,
+      "tps": 54.77,
+      "tokens": 67,
+      "error": null
+    },
+    {
+      "model_id": "models/gemma-3n-e2b-it",
+      "status": "success",
+      "latency": 1.79,
+      "ttft": 0.676,
+      "tps": 52.09,
+      "tokens": 58,
+      "error": null
+    },
+    {
+      "model_id": "models/gemini-flash-latest",
+      "status": "success",
+      "latency": 2.299,
+      "ttft": 2.061,
+      "tps": 12.59,
+      "tokens": 3,
+      "error": null
+    },
+    {
+      "model_id": "models/gemini-flash-lite-latest",
+      "status": "success",
+      "latency": 0.462,
+      "ttft": 0.333,
+      "tps": 23.26,
+      "tokens": 3,
+      "error": null
+    },
+    {
+      "model_id": "models/gemini-2.5-flash-lite",
+      "status": "success",
+      "latency": 1.013,
+      "ttft": 0.628,
+      "tps": 7.79,
+      "tokens": 3,
+      "error": null
+    },
+    {
+      "model_id": "models/gemini-2.5-flash-preview-09-2025",
+      "status": "success",
+      "latency": 0.784,
+      "ttft": 0.42,
+      "tps": 8.25,
+      "tokens": 3,
+      "error": null
+    },
+    {
+      "model_id": "models/gemini-2.5-flash-lite-preview-09-2025",
+      "status": "success",
+      "latency": 0.507,
+      "ttft": 0.316,
+      "tps": 21.0,
+      "tokens": 4,
+      "error": null
+    },
+    {
+      "model_id": "models/gemini-3-flash-preview",
+      "status": "success",
+      "latency": 5.19,
+      "ttft": 4.97,
+      "tps": 18.24,
+      "tokens": 4,
+      "error": null
+    },
+    {
+      "model_id": "models/gemini-robotics-er-1.5-preview",
+      "status": "success",
+      "latency": 8.47,
+      "ttft": 7.545,
+      "tps": 3.24,
+      "tokens": 3,
+      "error": null
+    }
+  ]
+}

@@ -154,6 +154,46 @@ class Logger:
         tb = traceback.format_exc()
         self._write_raw(f"[{ts}] [CRITICAL ERROR] {msg}: {e}\n{tb}\n")
 
+# ==================== PERSISTENT REPL ====================
+
+class REPLManager:
+    """Maintains a persistent interactive shell (Python/Node) across iterations."""
+    def __init__(self, root: Path, lang: str = "python"):
+        self.root = root
+        self.lang = lang
+        self.process = None
+        self._start()
+
+    def _start(self):
+        cmd = [sys.executable, "-i", "-q"] if self.lang == "python" else ["node", "-i"]
+        try:
+            self.process = subprocess.Popen(
+                cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                text=True, bufsize=1, cwd=self.root
+            )
+        except: self.process = None
+
+    async def execute(self, code: str) -> str:
+        if not self.process or self.process.poll() is not None:
+            self._start()
+        
+        if not self.process: return "REPL Error: Process failed to start."
+        
+        try:
+            # Wrap code to ensure it prints output if it's an expression (Python)
+            clean_code = textwrap.dedent(code).strip()
+            self.process.stdin.write(clean_code + "\nprint('---OMEGA_EOF---')\n")
+            self.process.stdin.flush()
+            
+            output = ""
+            while True:
+                line = await asyncio.to_thread(self.process.stdout.readline)
+                if '---OMEGA_EOF---' in line: break
+                output += line
+            return output.strip()
+        except Exception as e:
+            return str(e)
+
 # ==================== CONFIGURATION ====================
 
 def load_dynamic_models() -> Dict[str, Dict[str, str]]:
@@ -281,44 +321,44 @@ PROVIDER_PRESETS = {
             "architect": "openai/gpt-4o",
             "coder": "anthropic/claude-3.5-sonnet",
             "debugger": "openai/gpt-4o",
-            "reviewer": "anthropic/claude-3-haiku"
+            "reviewer": "anthropic/claude-3.5-haiku"
         },
         "Core": {
-            "planner": "google/gemini-flash-1.5",
-            "architect": "meta-llama/llama-3.1-70b-instruct",
+            "planner": "google/gemini-2.0-flash-001",
+            "architect": "meta-llama/llama-3.3-70b-instruct",
             "coder": "qwen/qwen-2.5-coder-32b-instruct",
-            "debugger": "google/gemini-flash-1.5",
-            "reviewer": "mistralai/pixtral-12b"
+            "debugger": "google/gemini-2.0-flash-001",
+            "reviewer": "mistralai/mistral-small-24b-instruct-2501"
         },
         "Pulse": {
             "planner": "mistralai/devstral-2512:free",
             "architect": "mistralai/devstral-2512:free",
             "coder": "mistralai/devstral-2512:free",
             "debugger": "liquid/lfm-2.5-1.2b-thinking:free",
-            "reviewer": "mistralai/devstral-2512:free"
+            "reviewer": "liquid/lfm-2.5-1.2b-instruct:free"
         }
     },
     "google": {
         "Ultra": {
             "planner": "gemini-2.0-flash",
-            "architect": "gemini-2.0-flash",
+            "architect": "gemini-1.5-pro",
             "coder": "gemini-2.0-flash",
             "debugger": "gemini-2.0-flash",
             "reviewer": "gemini-1.5-flash"
         },
         "Core": {
             "planner": "gemini-2.0-flash",
-            "architect": "gemini-2.5-flash",
-            "coder": "gemini-3-flash-preview",
-            "debugger": "gemini-2.5-flash",
-            "reviewer": "gemini-flash-lite-latest"
+            "architect": "gemini-2.0-flash",
+            "coder": "gemini-2.0-flash",
+            "debugger": "gemini-2.0-flash",
+            "reviewer": "gemini-1.5-flash"
         },
         "Pulse": {
-            "planner": "gemini-flash-lite-latest",
-            "architect": "gemini-flash-lite-latest",
-            "coder": "gemini-flash-lite-latest",
-            "debugger": "gemini-flash-lite-latest",
-            "reviewer": "gemini-flash-lite-latest"
+            "planner": "gemini-2.0-flash-lite-preview-0205",
+            "architect": "gemini-2.0-flash-lite-preview-0205",
+            "coder": "gemini-2.0-flash-lite-preview-0205",
+            "debugger": "gemini-2.0-flash-lite-preview-0205",
+            "reviewer": "gemini-2.0-flash-lite-preview-0205"
         }
     },
     "groq": {
@@ -327,11 +367,11 @@ PROVIDER_PRESETS = {
             "architect": "llama-3.3-70b-versatile",
             "coder": "llama-3.3-70b-versatile",
             "debugger": "llama-3.3-70b-versatile",
-            "reviewer": "llama-3.1-8b-instant"
+            "reviewer": "llama-3.3-70b-specdec"
         },
         "Core": {
             "planner": "llama-3.3-70b-versatile",
-            "architect": "mixtral-8x7b-32768",
+            "architect": "llama-3.1-70b-versatile",
             "coder": "llama-3.3-70b-versatile",
             "debugger": "llama-3.1-8b-instant",
             "reviewer": "llama-3.1-8b-instant"
@@ -452,6 +492,11 @@ COMMAND_HELP = {
         "usage": "/help <command>",
         "example": "/help models-tier"
     },
+    "calibrate": {
+        "desc": "Run a neural link performance audit and auto-optimize model assignments.",
+        "usage": "/calibrate",
+        "example": "/calibrate"
+    },
     "menu": {
         "desc": "Access the primary command dashboard.",
         "usage": "/menu",
@@ -461,6 +506,21 @@ COMMAND_HELP = {
         "desc": "Power down the agent and save session state.",
         "usage": "/exit",
         "example": "/exit"
+    },
+    "stats": {
+        "desc": "View real-time neural resource telemetry (Tokens, Costs, Logic Load).",
+        "usage": "/stats",
+        "example": "/stats"
+    },
+    "sandbox": {
+        "desc": "Temporal Isolation Mode. Creates a safe 'Draft' workspace for non-destructive coding.",
+        "usage": "/sandbox",
+        "example": "/sandbox"
+    },
+    "commit": {
+        "desc": "Permanently merge sandbox changes into the main project workspace.",
+        "usage": "/commit",
+        "example": "/commit"
     }
 }
 
@@ -572,6 +632,115 @@ class KnowledgeManager:
         with open(self.rag_path, 'w', encoding='utf-8') as f:
             json.dump(index, f, indent=2)
         return f"Neural Index Built: {len(index)} files mapped."
+
+    async def build_semantic_index(self, client: 'OmegaClient'):
+        """Asynchronously adds vectors to the existing index using Gemini."""
+        if not self.rag_path.exists(): return
+        
+        with open(self.rag_path, 'r', encoding='utf-8') as f:
+            index = json.load(f)
+        
+        updated = 0
+        for path, data in index.items():
+            if "vector" not in data:
+                # Chunk top lines for embedding
+                text = f"File: {path}\nSignatures: {','.join(data['signatures'])}\nContent: {','.join(data['top_lines'])}"
+                data["vector"] = await client.embed_text(text)
+                updated += 1
+                if updated % 5 == 0: # Small delay to avoid rate limits
+                    await asyncio.sleep(0.5)
+        
+        with open(self.rag_path, 'w', encoding='utf-8') as f:
+            json.dump(index, f, indent=2)
+        return f"Semantic Update: {updated} vectors generated."
+
+    async def semantic_search(self, query: str, client: 'OmegaClient', top_k: int = 5) -> List[str]:
+        """Perform vector-based similarity search against the project index."""
+        if not self.rag_path.exists(): return []
+        
+        query_vec = await client.embed_text(query)
+        if not query_vec: return []
+
+        with open(self.rag_path, 'r', encoding='utf-8') as f:
+            index = json.load(f)
+
+        results = []
+        for path, data in index.items():
+            vec = data.get("vector")
+            if not vec: continue
+            
+            # Manual cosine similarity Calculation
+            dot = sum(a*b for a, b in zip(query_vec, vec))
+            norm_a = sum(a*a for a in query_vec) ** 0.5
+            norm_b = sum(b*b for b in vec) ** 0.5
+            score = dot / (norm_a * norm_b) if norm_a and norm_b else 0
+            results.append((path, score))
+        
+        results.sort(key=lambda x: x[1], reverse=True)
+        return [r[0] for r in results[:top_k]]
+
+# ==================== NEURAL CALIBRATION ====================
+
+class NeuralCalibrator:
+    """Unifies multi-provider performance auditing and auto-optimization."""
+    def __init__(self, ai_client: 'OmegaClient', workspace: 'WorkspaceManager'):
+        self.ai = ai_client
+        self.workspace = workspace
+        self.results = {}
+
+    async def audit_provider(self, provider_name: str, models_file: str) -> Dict:
+        """Perform a live performance audit on all models in the provider catalogue."""
+        if not Path(models_file).exists():
+            return {"error": f"Catalogue {models_file} not found."}
+
+        with open(models_file, "r", encoding="utf-8") as f:
+            raw_data = json.load(f)
+            # Handle both OpenRouter/Groq (data list) and Google (data list of model objects)
+            models = []
+            if provider_name == "google":
+                models = [m["model"] for m in raw_data.get("data", [])]
+            else:
+                models = [m.get("id") or m.get("model") for m in raw_data.get("data", []) if m]
+        
+        models = [m for m in models if m] # Clean up
+        results = []
+        semaphore = asyncio.Semaphore(3) # Respect rate limits
+        
+        async def test_one(m_id):
+            async with semaphore:
+                start = time.time()
+                try:
+                    # Simple prompt to measure TTFT and speed
+                    # We use a direct stream call to bypass the full agent logic
+                    headers = {"Content-Type": "application/json"}
+                    if provider_name == "openrouter":
+                        headers["Authorization"] = f"Bearer {self.ai.api_key}"
+                    elif provider_name == "google":
+                        headers["Authorization"] = f"Bearer {self.ai.api_key}"
+                    elif provider_name == "groq":
+                        headers["Authorization"] = f"Bearer {self.ai.api_key}"
+
+                    payload = {
+                        "model": m_id.replace("models/", "") if provider_name == "google" else m_id,
+                        "messages": [{"role": "user", "content": "Hi"}],
+                        "max_tokens": 10
+                    }
+                    
+                    # Log attempt for debugging if needed (internal)
+                    # print(f"Testing {m_id} on {provider_name}...") 
+                    
+                    async with httpx.AsyncClient() as client:
+                        resp = await client.post(PROVIDERS[provider_name]["endpoint"], headers=headers, json=payload, timeout=10)
+                        latency = time.time() - start
+                        if resp.status_code == 200:
+                            return {"id": m_id, "status": "PASS", "latency": latency}
+                        return {"id": m_id, "status": "FAIL", "error": resp.status_code}
+                except Exception as e:
+                    return {"id": m_id, "status": "FAIL", "error": str(e)}
+
+        tasks = [test_one(m) for m in models[:15]] # Test top 15 for speed
+        results = await asyncio.gather(*tasks)
+        return {"provider": provider_name, "results": results, "timestamp": time.time()}
 
 # ==================== ENGINE MODULES ====================
 
@@ -786,7 +955,6 @@ class ToolParser:
             for m in re.finditer(r'`shell:(.*?)`', text):
                 tools.append({"type": "run", "cmd": m.group(1).strip()})
 
-        # XML Patch: <patch path="..."> <search>...</search> <replace>...</replace> </patch>
         for p in re.finditer(r'<patch\s+path=["\']?([^"\'>\s]+)["\']?>(.*?)</patch>', text, re.DOTALL | re.IGNORECASE):
             path = p.group(1)
             body = p.group(2)
@@ -799,6 +967,10 @@ class ToolParser:
                     "search": search.group(1), 
                     "replace": replace.group(1)
                 })
+
+        # XML REPL: <repl>code</repl>
+        for m in re.finditer(r'<repl>(.*?)</repl>', text, re.DOTALL | re.IGNORECASE):
+            tools.append({"type": "repl", "code": m.group(1).strip()})
 
         return tools
 
@@ -816,6 +988,16 @@ class OmegaClient:
         }
         self.history = []
         self.logger = Logger(Path.cwd()) # Fallback logger access
+        
+        # Telemetry
+        self.usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_cost": 0.0}
+        self.prices = {
+            "anthropic/claude-3.5-sonnet": (3.0, 15.0),
+            "openai/gpt-4o": (2.5, 10.0),
+            "openai/gpt-4o-mini": (0.15, 0.6),
+            "google/gemini-2.0-flash": (0.1, 0.4),
+            "meta-llama/llama-3.3-70b": (0.7, 0.9)
+        }
 
     async def stream(self, prompt: str, system: str = "", role: str = "coder"):
         model = self.models.get(role, self.models.get("coder"))
@@ -949,8 +1131,30 @@ class OmegaClient:
                         self.history.append({"role": "user", "content": prompt})
                         self.history.append({"role": "assistant", "content": full})
                         if len(self.history) > 20: self.history = self.history[-20:]
+                        
+                        # Update Telemetry (Est.)
+                        p_tok = TokenCounter.estimate(prompt + system)
+                        c_tok = TokenCounter.estimate(full)
+                        self.usage["prompt_tokens"] += p_tok
+                        self.usage["completion_tokens"] += c_tok
+                        
+                        # Calculate Cost
+                        rate = self.prices.get(model, (0.5, 1.5))
+                        cost = (p_tok * rate[0] / 1_000_000) + (c_tok * rate[1] / 1_000_000)
+                        self.usage["total_cost"] += cost
             except Exception as e:
                 yield ("error", f"\n[bold red]CONNECTION FAILED ({provider_config['name']}):[/bold red] {str(e)}")
+
+    async def embed_text(self, text: str) -> List[float]:
+        """Generate high-fidelity embeddings for semantic search."""
+        if self.provider == "google" and genai:
+            try:
+                # Use sync client in thread for embedding call as it's typically faster/simpler for single calls
+                client = genai.Client(api_key=self.api_key)
+                res = client.models.embed_content(model="text-embedding-004", contents=text)
+                return res.embeddings[0].values
+            except: return []
+        return []
 
     async def stream_vision(self, prompt: str, image_path: Path):
         """Streaming vision support for multi-modal models."""
@@ -1000,7 +1204,7 @@ class OmegaAi:
         self.knowledge = KnowledgeManager(self.root)
         
         # Auto-index if RAG is on
-        if self.config.get("tools", "rag"):
+        if self.config.get("tools", "rag", default=True):
             self.knowledge.build_index()
         
         # Log startup
@@ -1012,6 +1216,10 @@ class OmegaAi:
             sys.exit(1)
             
         self.iteration = 0
+        self.self_healing = SelfHealingManager(self.client)
+        self.calibrator = NeuralCalibrator(self.client, self.workspace)
+        self.repl = REPLManager(self.root)
+        self.sandbox_orig = None
 
     def setup_client(self, provider_name: str = None) -> bool:
         """Configures the current AI provider and initializes the client with stateful model memory."""
@@ -1055,15 +1263,23 @@ class OmegaAi:
         self.config.save()
         
         self.client = OmegaClient(api_key.strip(), self.config.get("models"), provider=provider_name)
+        
+        # Sync all neural sub-managers with the new client context
+        if hasattr(self, 'calibrator'): self.calibrator.ai = self.client
+        if hasattr(self, 'self_healing'): self.self_healing.ai = self.client
+        if hasattr(self, 'repl'): self.repl.root = self.root # Ensure REPL stays in sync with workspace root
+        
         return True
 
     def show_banner(self):
         banner_font = r"""
-   ____  __  __________________    ___    ____
-  / __ \/  |/  / ____/ ____/   |  /   |  /  _/
- / / / / /|_/ / __/ / / __/ /| | / /| |  / /  
-/ /_/ / /  / / /___/ /_/ / ___ |/ ___ |_/ /   
-\____/_/  |_/_____/\____/_/  |_/_/  |_/___/   
+ ██████╗ ███╗   ███╗███████╗ ██████╗  █████╗     █████╗ ██╗
+██╔═══██╗████╗ ████║██╔════╝██╔════╝ ██╔══██╗   ██╔══██╗██║
+██║   ██║██╔████╔██║█████╗  ██║  ███╗███████║   ███████║██║
+██║   ██║██║╚██╔╝██║██╔══╝  ██║   ██║██╔══██║   ██╔══██║██║
+╚██████╔╝██║ ╚═╝ ██║███████╗╚██████╔╝██║  ██║██╗██║  ██║██║
+ ╚═════╝ ╚═╝     ╚═╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝╚═╝  ╚═╝╚═╝
+         [ NEURAL EVOLUTION : STATE-OF-THE-ART AUTONOMY ]
 """
         active_models = self.config.get("models")
         current_p = PROVIDERS.get(self.client.provider, {"name": "Unknown"})
@@ -1129,18 +1345,18 @@ class OmegaAi:
         
         console.print(Panel(Align.center("  |  ".join(tool_badges)), title="[bold green] HARDWARE TOOLBOX STATUS [/bold green]", border_style="green"))
 
-        # 4. Command Dock
+        # 4. Command Dock (NEURAL EVOLUTION)
         cmd_grid = Table.grid(expand=True, padding=(0, 2))
         cmd_grid.add_column(style="bold yellow", ratio=1)
         cmd_grid.add_column(style="dim white", ratio=2)
         cmd_grid.add_column(style="bold yellow", ratio=1)
         cmd_grid.add_column(style="dim white", ratio=2)
 
-        cmd_grid.add_row("🚀 /vibe <task>", "Autonomous coding pipeline", "� /models", "List global model catalogue")
-        cmd_grid.add_row("🧠 /preset", "Swap intelligence presets", "🔌 /provider", "Swap AI gateway / provider")
-        cmd_grid.add_row("📂 /tree", "Visualize directory structure", "❓ /help", "Summon help dashboard")
+        cmd_grid.add_row("🚀 /vibe <task>", "Autonomous pipeline", "🔬 /calibrate", "Neural performance audit")
+        cmd_grid.add_row("🧠 /preset", "Swap intelligence", "📊 /stats", "Telemetry & Costs")
+        cmd_grid.add_row("🛡️ /sandbox", "Temporal isolation", "❓ /help", "Summon dashboard")
         
-        console.print(Panel(cmd_grid, title="[bold yellow] QUICK COMMAND DOCK [/bold yellow]", border_style="yellow", padding=(1, 2)))
+        console.print(Panel(cmd_grid, title="[bold yellow] NEURAL QUICK ACCESS [/bold yellow]", border_style="yellow", padding=(1, 2)))
 
     async def run_command(self, cmd: str, timeout: int = 40):
         console.print(f"[bold yellow]⚡ Shell:[/bold yellow] {cmd}")
@@ -1220,11 +1436,27 @@ class OmegaAi:
         results = []
         healer = SelfHealingManager(self.client)
         
+        # 1. Parallelize independent tasks (Reads and Searches)
+        indep_tools = [t for t in tools if t["type"] in ["read", "search"]]
+        if indep_tools:
+            async def run_indep(t):
+                if t["type"] == "read":
+                    res = await self.workspace.read(t["path"])
+                    return f"Content of {t['path']}:\n{res[:1000]}"
+                elif t["type"] == "search":
+                    if self.config.get("tools", "search") and DDGS:
+                        try:
+                            with DDGS() as ddgs:
+                                res = [r for r in ddgs.text(t["query"], max_results=5)]
+                                return f"Search results for '{t['query']}':\n{res}"
+                        except: return "Search failed."
+                return ""
+            c_res = await asyncio.gather(*(run_indep(t) for t in indep_tools))
+            results.extend([r for r in c_res if r])
+
+        # 2. Sequential tasks for stateful operations
         for t in tools:
-            if t["type"] == "read":
-                res = await self.workspace.read(t["path"])
-                results.append(f"Content of {t['path']}:\n{res[:1000]}")
-            elif t["type"] == "write":
+            if t["type"] == "write":
                 res = await self.workspace.write(t["path"], t["content"])
                 results.append(res)
             elif t["type"] == "run":
@@ -1246,14 +1478,13 @@ class OmegaAi:
                     results.append(f"Vision Analysis for {t['path']}:\n{res}")
                 else:
                     results.append(f"Error: Image {t['path']} not found.")
-            elif t["type"] == "search":
-                if self.config.get("tools", "search"):
-                    if DDGS:
-                        with DDGS() as ddgs:
-                            res = [r for r in ddgs.text(t["query"], max_results=5)]
-                            results.append(f"Search results for '{t['query']}':\n{res}")
-                    else: results.append("Error: Search tool not available (missing library).")
-                else: results.append("Error: Web Search is currently DISABLED in /tools.")
+            elif t["type"] == "repl":
+                if not hasattr(self, 'repl'):
+                    self.repl = REPLManager(self.root)
+                console.print(f"[bold magenta]⚡ Executing in REPL...[/bold magenta]")
+                res = await self.repl.execute(t["code"])
+                results.append(f"REPL Output:\n{res}")
+        
         return "\n".join(results)
 
     async def patch_file(self, path: str, search: str, replace: str):
@@ -1261,9 +1492,33 @@ class OmegaAi:
         if not full_path.exists(): return f"Error: File {path} not found."
         async with aiofiles.open(full_path, 'r', encoding='utf-8') as f:
             content = await f.read()
-        if search not in content:
-            return f"Error: Could not find search string in {path}. Send the EXACT string including whitespace."
-        new_content = content.replace(search, replace)
+        
+        if search in content:
+            new_content = content.replace(search, replace)
+        else:
+            # Fuzzy Matching Logic
+            import difflib
+            lines = content.splitlines(keepends=True)
+            search_lines = search.splitlines(keepends=True)
+            n = len(search_lines)
+            
+            best_ratio = 0
+            best_block = None
+            
+            # Sliding window fuzzy match
+            for i in range(len(lines) - n + 1):
+                window = "".join(lines[i:i+n])
+                ratio = difflib.SequenceMatcher(None, window, search).ratio()
+                if ratio > best_ratio:
+                    best_ratio = ratio
+                    best_block = window
+            
+            if best_ratio > 0.85: # High confidence threshold
+                console.print(f"[bold yellow]⚠️ Fuzzy Match Found ({int(best_ratio*100)}%):[/bold yellow] Applied patch to a similar block.")
+                new_content = content.replace(best_block, replace)
+            else:
+                return f"Error: Could not find search block in {path}. Exact match failed and fuzzy match confidence too low ({int(best_ratio*100)}%)."
+
         async with aiofiles.open(full_path, 'w', encoding='utf-8') as f:
             await f.write(new_content)
         return f"Successfully patched {path}."
@@ -1577,13 +1832,22 @@ Please:
         system_table = Table(title="⚙️ SYSTEM CORE", box=box.SIMPLE, header_style="bold blue", border_style="blue")
         system_table.add_column("Command", style="yellow")
         system_table.add_column("Description", style="white")
-        system_table.add_row("/provider", "Manage AI Gateway providers")
-        system_table.add_row("/tools", "Toggle hardware tool access")
+        system_table.add_row("/provider", "Gateways (OpenRouter/Google/Groq)")
+        system_table.add_row("/tools", "Toggle hardware capabilities")
         system_table.add_row("/history", "Probe neural command logs")
-        system_table.add_row("/menu /help", "Summon this dashboard")
         system_table.add_row("/exit", "Secure system shutdown")
 
+        # --- Column 4: ADVANCED OPS ---
+        adv_table = Table(title="💎 ADVANCED OPS", box=box.SIMPLE, header_style="bold green", border_style="green")
+        adv_table.add_column("Command", style="yellow")
+        adv_table.add_column("Description", style="white")
+        adv_table.add_row("/calibrate", "Optimize Neural Performance")
+        adv_table.add_row("/stats", "Live Telemetry Dashboard")
+        adv_table.add_row("/sandbox", "Toggle Temporal Isolation")
+        adv_table.add_row("/commit", "Finalize Sandbox Changes")
+
         grid.add_row(neural_table, ai_table, system_table)
+        grid.add_row(adv_table, "", "") # Aligning the grid
 
         # 3. Telemetry Footer
         active_provider = PROVIDERS.get(self.client.provider, {"name": "Unknown"})["name"]
@@ -2025,7 +2289,7 @@ Please:
                             ))
 
                     elif base == "tools":
-                        to = self.config.get("tools")
+                        to = self.config.get("tools", default={})
                         if arg:
                             target = arg.lower().strip()
                             if target in to:
@@ -2055,6 +2319,69 @@ Please:
                         
                         console.print(t_table)
                         console.print("\n[dim]Tip: type '/tools <name>' to toggle a tool.[/dim]")
+
+                    elif base == "calibrate":
+                        console.print(Panel("[bold yellow]🚀 Initiating Neural Link Calibration...[/bold yellow]\nTesting active provider models for latency.", border_style="yellow"))
+                        provider = self.config.get("active_provider")
+                        catalog_file = f"{provider}_free_models.json" if provider != "groq" else "groq_models.json"
+                        if not Path(catalog_file).exists():
+                            catalog_file = f"{provider}_models.json"
+                        
+                        with console.status(f"[bold cyan]Auditing {provider} neural pathways...[/bold cyan]"):
+                            report = await self.calibrator.audit_provider(provider, catalog_file)
+                        
+                        if "error" in report:
+                            console.print(f"[bold red]Calibration Failed:[/bold red] {report['error']}")
+                        else:
+                            passes = [r for r in report["results"] if r["status"] == "PASS"]
+                            passes.sort(key=lambda x: x["latency"])
+                            
+                            if passes:
+                                best = passes[0]
+                                console.print(f"✅ [bold green]Calibration Complete![/bold green] Fastest Neural Link: [cyan]{best['id']}[/cyan] ({best['latency']:.2f}s)")
+                                if Confirm.ask("Do you want to auto-assign the fastest models to your current preset?"):
+                                    for role in self.config.get("models", default={}):
+                                        self.config.config["models"][role] = best['id']
+                                    self.config.save()
+                                    console.print("[bold cyan]🧠 Synchronizing Semantic Index...[/bold cyan]")
+                                    await self.knowledge.build_semantic_index(self.client)
+                                    console.print("[bold magenta]✨ Preset Optimized and Semantic Index Synced.[/bold magenta]")
+                            else:
+                                console.print("[bold red]Calibration Warning:[/bold red] No models passed the latency audit.")
+
+                    elif base == "stats":
+                        u = self.client.usage
+                        s_table = Table(title="📊 Neural Resource Telemetry", border_style="cyan", box=box.ROUNDED)
+                        s_table.add_column("Metric", style="cyan")
+                        s_table.add_column("Value", style="bold white")
+                        s_table.add_row("Prompt Tokens", f"{u['prompt_tokens']:,}")
+                        s_table.add_row("Completion Tokens", f"{u['completion_tokens']:,}")
+                        s_table.add_row("Total Context", f"{u['prompt_tokens'] + u['completion_tokens']:,}")
+                        s_table.add_row("Est. Cost (USD)", f"${u['total_cost']:.4f}")
+                        console.print(Panel(s_table, border_style="cyan", expand=False))
+
+                    elif base == "sandbox":
+                        if not self.sandbox_orig:
+                            import tempfile
+                            self.sandbox_orig = self.root
+                            temp_dir = Path(tempfile.mkdtemp(prefix="omega_sandbox_"))
+                            shutil.copytree(self.root, temp_dir, dirs_exist_ok=True, ignore=shutil.ignore_patterns(".omega", ".git", "logs"))
+                            self.root = temp_dir
+                            self.workspace.root = temp_dir
+                            console.print(f"[bold yellow]🛡️ Sandbox Mode Active:[/bold yellow] Workspace isolated in {self.root}")
+                        else:
+                            self.root = self.sandbox_orig
+                            self.workspace.root = self.sandbox_orig
+                            self.sandbox_orig = None
+                            console.print("[bold green]🛡️ Sandbox Discarded. Back to original workspace.[/bold green]")
+
+                    elif base == "commit":
+                        if self.sandbox_orig:
+                            console.print("[bold yellow]🚀 Committing Sandbox changes to Main Workspace...[/bold yellow]")
+                            shutil.copytree(self.root, self.sandbox_orig, dirs_exist_ok=True, ignore=shutil.ignore_patterns(".omega", ".git", "logs"))
+                            console.print("[bold green]✅ Commit Successful.[/bold green]")
+                        else:
+                            console.print("[red]Error: Not in a Sandbox session.[/red]")
 
                     elif base == "provider":
                         if not arg:
@@ -2095,7 +2422,7 @@ Please:
                 console.print(f"[bold red]System Exception:[/bold red] {e}")
                 self.logger.exception("Main Loop Crash", e)
                 import traceback
-                if self.config.get("features", "verbose"): traceback.print_exc()
+                if self.config.get("features", "verbose", default=False): traceback.print_exc()
 
 if __name__ == "__main__":
     ai = OmegaAi()
